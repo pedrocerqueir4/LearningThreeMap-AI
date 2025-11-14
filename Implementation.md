@@ -2,11 +2,11 @@
 ## Phase 0 – Project setup
 
 - [X] Create a git repo and base folder structure (frontend, backend).
-- [ ] Initialize frontend with Vite (React + TS).
-- [ ] Initialize backend as a Cloudflare Worker project with Hono.
-- [ ] Configure local dev scripts so you can:
-    - [ ] Run frontend dev server.
-    - [ ] Run backend Worker locally (wrangler dev or similar).
+- [X] Initialize frontend with Vite (React + TS).
+- [X] Initialize backend as a Cloudflare Worker project with Hono.
+- [X] Configure local dev scripts so you can:
+    - [X] Run frontend dev server.
+    - [X] Run backend Worker locally (wrangler dev or similar).
 
 ## Phase 1 – Backend skeleton (no AI yet)
 
