@@ -10,13 +10,13 @@
 
 ## Phase 1 – Backend skeleton (no AI yet)
 
-- [ ] Define D1 schema (SQL) with conversations, messages, nodes, edges.
-- [ ] Set up Hono routes:
-    - [ ] POST /api/conversations (creates new conversation).
-    - [ ] GET /api/conversations (lists conversations).
-    - [ ] GET /api/graph/:conversationId (returns all nodes/edges).
-- [ ] Implement D1 access helpers for these routes.
-- [ ] Test with HTTP client (Postman, curl, Insomnia).
+- [X] Define D1 schema (SQL) with conversations, messages, nodes, edges.
+- [X] Set up Hono routes:
+    - [X] POST /api/conversations (creates new conversation).
+    - [X] GET /api/conversations (lists conversations).
+    - [X] GET /api/graph/:conversationId (returns all nodes/edges).
+- [X] Implement D1 access helpers for these routes.
+- [X] Test with HTTP client (Postman, curl, Insomnia).
 
 ## Phase 2 – Frontend basic structure
 
