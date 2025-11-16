@@ -20,13 +20,13 @@
 
 ## Phase 2 – Frontend basic structure
 
-- [ ] Create basic layout:
-    - [ ] Conversation list view.
-    - [ ] Conversation view with placeholder chat and graph areas.
-- [ ] Set up Zustand store slices for conversations, messages, and graph.
-- [ ] Integrate with backend:
-    - [ ] Load conversation list from /api/conversations.
-    - [ ] Create new conversation from UI.
+- [X] Create basic layout:
+    - [X] Conversation list view.
+    - [X] Conversation view with placeholder chat and graph areas.
+- [X] Set up Zustand store slices for conversations, messages, and graph.
+- [X] Integrate with backend:
+    - [X] Load conversation list from /api/conversations.
+    - [X] Create new conversation from UI.
 
 ## Phase 3 – Chat without AI (echo or dummy)
 
