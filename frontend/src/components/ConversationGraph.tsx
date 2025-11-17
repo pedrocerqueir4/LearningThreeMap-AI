@@ -13,6 +13,7 @@ import type { Edge, Node, NodeProps } from 'reactflow'
 import 'reactflow/dist/style.css'
 
 import type { GraphEdge, GraphNode } from '../store/graph'
+import { useGraphStore } from '../store/graph'
 
 export type ConversationGraphProps = {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null
@@ -110,27 +111,24 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const [nodes, setNodes, onNodesChange] = useNodesState<QaNodeData>([])
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<DraftNode[]>([])
+  const { updateNodePositions } = useGraphStore()
 
   // Reset drafts when conversation changes
   useEffect(() => {
     setDrafts([])
   }, [conversationId])
 
-  // Ensure there is at least one draft node for empty conversations
-  const hasGraphContent = !!graph && graph.nodes.length > 0
-
-  useEffect(() => {
-    if (hasGraphContent) return
-    setDrafts((current) => {
-      if (current.length > 0) return current
-      return [{ id: 'draft-root', anchorNodeId: null }]
-    })
-  }, [hasGraphContent])
-
   const handleCreateDraftBelow = useCallback((nodeId: string, anchorNodeId: string | null) => {
     setDrafts((current) => [
       ...current,
       { id: `draft-${Math.random().toString(36).slice(2)}`, anchorNodeId: anchorNodeId ?? nodeId },
+    ])
+  }, [])
+
+  const handleCreateRootDraft = useCallback(() => {
+    setDrafts((current) => [
+      ...current,
+      { id: `draft-${Math.random().toString(36).slice(2)}`, anchorNodeId: null },
     ])
   }, [])
 
@@ -183,12 +181,19 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       pairIdByAnchorNodeId.set(p.anchorNodeId, p.id)
     }
 
-    // Position nodes in a simple vertical layout initially; user can drag later
+    // Position nodes based on saved positions when available; otherwise fall back to a simple layout.
     const reactFlowNodes: Node<QaNodeData>[] = pairs.map((p, index) => {
+      const fallbackPosition = { x: 0, y: index * 220 }
+      const anchorGraphNode = nodeById.get(p.anchorNodeId)
+      const position =
+        anchorGraphNode && anchorGraphNode.pos_x != null && anchorGraphNode.pos_y != null
+          ? { x: anchorGraphNode.pos_x, y: anchorGraphNode.pos_y }
+          : fallbackPosition
+
       return {
         id: p.id,
         type: 'qa',
-        position: { x: 0, y: index * 220 },
+        position,
         data: {
           id: p.id,
           mode: 'complete',
@@ -291,6 +296,23 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     fitView({ padding: 0.2, duration: 200 })
   }, [fitView])
 
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node<QaNodeData>) => {
+      if (node.data.mode !== 'complete') return
+
+      const anchorNodeId = node.data.anchorNodeId ?? node.id
+
+      void updateNodePositions(conversationId, [
+        {
+          nodeId: anchorNodeId,
+          x: node.position.x,
+          y: node.position.y,
+        },
+      ])
+    },
+    [conversationId, updateNodePositions],
+  )
+
   // Ensure initial fit
   const onInit = useCallback(() => {
     if (computedNodes.length > 0) {
@@ -299,21 +321,36 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   }, [fitView, computedNodes.length])
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      fitView
-      onInit={onInit}
-      onNodeDoubleClick={onNodeDoubleClick}
-      onPaneClick={onPaneClick}
-      onNodesChange={onNodesChange}
-      proOptions={{ hideAttribution: true }}
-      style={{ width: '100%', height: '100%' }}
-    >
-      <Background gap={16} color="#e5e7eb" />
-      <Controls />
-    </ReactFlow>
+    <div className="graph-shell">
+      <div className="graph-flow">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          fitView
+          onInit={onInit}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onPaneClick={onPaneClick}
+          onNodeDragStop={onNodeDragStop}
+          onNodesChange={onNodesChange}
+          proOptions={{ hideAttribution: true }}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <Background gap={16} color="#e5e7eb" />
+          <Controls />
+        </ReactFlow>
+      </div>
+      <div className="graph-toolbar">
+        <button
+          type="button"
+          className="graph-toolbar-button"
+          onClick={handleCreateRootDraft}
+        >
+          <span className="graph-toolbar-button-icon">+</span>
+          <span className="graph-toolbar-button-label">New starting node</span>
+        </button>
+      </div>
+    </div>
   )
 }
 

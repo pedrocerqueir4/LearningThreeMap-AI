@@ -367,6 +367,60 @@
   flex: 1;
 }
 
+.graph-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.graph-flow {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.graph-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  background-color: rgba(17, 24, 39, 0.96);
+  box-shadow: 0 12px 25px rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.graph-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  background: transparent;
+  color: #f9fafb;
+  border: none;
+  padding: 0.1rem 0.25rem;
+  font-size: 0.8rem;
+}
+
+.graph-toolbar-button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 9999px;
+  background-color: #1f2937;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.graph-toolbar-button-label {
+  white-space: nowrap;
+}
+
 .roadmap-column {
   display: flex;
   flex-direction: column;

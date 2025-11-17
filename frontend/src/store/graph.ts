@@ -7,6 +7,8 @@ export type GraphNode = {
   type: 'user' | 'ai'
   label: string
   created_at: string
+  pos_x: number | null
+  pos_y: number | null
 }
 
 export type GraphEdge = {
@@ -29,6 +31,10 @@ type GraphActions = {
   setGraphError: (conversationId: string, error: string | null) => void
   fetchGraph: (conversationId: string) => Promise<void>
   removeConversationGraph: (conversationId: string) => void
+  updateNodePositions: (
+    conversationId: string,
+    positions: { nodeId: string; x: number; y: number }[],
+  ) => Promise<void>
 }
 
 export const useGraphStore = create<GraphState & GraphActions>((set) => ({
@@ -92,5 +98,39 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       const { [conversationId]: _error, ...errorByConversationId } = state.errorByConversationId
       return { graphByConversationId, loadingByConversationId, errorByConversationId }
     })
+  },
+  updateNodePositions: async (
+    conversationId: string,
+    positions: { nodeId: string; x: number; y: number }[],
+  ) => {
+    if (!positions.length) return
+    // Optimistically update local cache so that reopening the conversation
+    // reuses the latest positions even if we don't refetch the graph.
+    set((state) => {
+      const existing = state.graphByConversationId[conversationId]
+      if (!existing) return {}
+
+      const updatedNodes = existing.nodes.map((node) => {
+        const match = positions.find((p) => p.nodeId === node.id)
+        if (!match) return node
+        return { ...node, pos_x: match.x, pos_y: match.y }
+      })
+
+      return {
+        graphByConversationId: {
+          ...state.graphByConversationId,
+          [conversationId]: { nodes: updatedNodes, edges: existing.edges },
+        },
+      }
+    })
+    try {
+      await fetch(`/api/graph/${conversationId}/positions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positions }),
+      })
+    } catch {
+      // Ignore position update errors for now; UI already reflects the new layout.
+    }
   },
 }))

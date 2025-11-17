@@ -13,6 +13,8 @@ export type GraphNode = {
   type: 'user' | 'ai'
   label: string
   created_at: string
+  pos_x: number | null
+  pos_y: number | null
 }
 export type GraphEdge = {
   id: string
@@ -22,6 +24,7 @@ export type GraphEdge = {
   created_at: string
 }
 export type GraphDelta = { newNodes: GraphNode[]; newEdges: GraphEdge[] }
+export type NodePositionUpdate = { nodeId: string; x: number; y: number }
 
 export async function createConversation(db: D1Database, title: string): Promise<Conversation> {
   const id = crypto.randomUUID()
@@ -36,11 +39,33 @@ export async function listConversations(db: D1Database): Promise<Conversation[]>
 }
 
 export async function getGraph(db: D1Database, conversationId: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
-  const nodesRes = await db.prepare("SELECT id, conversation_id, message_id, type, label, created_at FROM nodes WHERE conversation_id = ?").bind(conversationId).all<GraphNode>()
-  const edgesRes = await db.prepare("SELECT id, conversation_id, source, target, created_at FROM edges WHERE conversation_id = ?").bind(conversationId).all<GraphEdge>()
+  const nodesRes = await db
+    .prepare(
+      'SELECT id, conversation_id, message_id, type, label, created_at, pos_x, pos_y FROM nodes WHERE conversation_id = ?',
+    )
+    .bind(conversationId)
+    .all<GraphNode>()
+  const edgesRes = await db
+    .prepare('SELECT id, conversation_id, source, target, created_at FROM edges WHERE conversation_id = ?')
+    .bind(conversationId)
+    .all<GraphEdge>()
   return {
     nodes: (nodesRes.results || []) as GraphNode[],
     edges: (edgesRes.results || []) as GraphEdge[],
+  }
+}
+
+export async function updateNodePositions(
+  db: D1Database,
+  conversationId: string,
+  positions: NodePositionUpdate[],
+): Promise<void> {
+  if (!positions.length) return
+  for (const { nodeId, x, y } of positions) {
+    await db
+      .prepare('UPDATE nodes SET pos_x = ?, pos_y = ? WHERE id = ? AND conversation_id = ?')
+      .bind(x, y, nodeId, conversationId)
+      .run()
   }
 }
 
@@ -103,7 +128,7 @@ export async function createMessageWithDummyAI(
     .run()
 
   // Previous node for this conversation, if any. If a fromNodeId is provided use that,
-  // otherwise fall back to the most recent node in the conversation.
+  // otherwise leave this message pair as a new starting point with no parent edge.
   let prevNodeId: string | null = null
 
   if (fromNodeId) {
@@ -114,14 +139,6 @@ export async function createMessageWithDummyAI(
     prevNodeId = specificPrev?.id ?? null
   }
 
-  if (!prevNodeId) {
-    const fallbackPrev = await db
-      .prepare('SELECT id FROM nodes WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1')
-      .bind(conversationId)
-      .first<{ id: string } | null>()
-    prevNodeId = fallbackPrev?.id ?? null
-  }
-
   const userNode: GraphNode = {
     id: crypto.randomUUID(),
     conversation_id: conversationId,
@@ -129,6 +146,8 @@ export async function createMessageWithDummyAI(
     type: 'user',
     label: content,
     created_at: now,
+    pos_x: null,
+    pos_y: null,
   }
 
   const aiNode: GraphNode = {
@@ -138,11 +157,13 @@ export async function createMessageWithDummyAI(
     type: 'ai',
     label: aiContent,
     created_at: new Date().toISOString(),
+    pos_x: null,
+    pos_y: null,
   }
 
   await db
     .prepare(
-      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at, pos_x, pos_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .bind(
       userNode.id,
@@ -151,12 +172,14 @@ export async function createMessageWithDummyAI(
       userNode.type,
       userNode.label,
       userNode.created_at,
+      userNode.pos_x,
+      userNode.pos_y,
     )
     .run()
 
   await db
     .prepare(
-      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at, pos_x, pos_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     )
     .bind(
       aiNode.id,
@@ -165,6 +188,8 @@ export async function createMessageWithDummyAI(
       aiNode.type,
       aiNode.label,
       aiNode.created_at,
+      aiNode.pos_x,
+      aiNode.pos_y,
     )
     .run()
 

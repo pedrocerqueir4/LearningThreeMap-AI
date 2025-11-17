@@ -18,6 +18,7 @@ import {
   getGraph,
   createMessageWithDummyAI,
   deleteConversation,
+  updateNodePositions,
 } from './db'
 
 type Bindings = { DB: D1Database }
@@ -56,6 +57,38 @@ app.get('/api/graph/:conversationId', async (c) => {
   const conversationId = c.req.param('conversationId')
   const graph = await getGraph(c.env.DB, conversationId)
   return c.json(graph)
+})
+
+app.post('/api/graph/:conversationId/positions', async (c) => {
+  const conversationId = c.req.param('conversationId')
+
+  if (!conversationId) {
+    return c.json({ error: 'conversationId is required' }, 400)
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    positions?: { nodeId?: string; x?: number; y?: number }[]
+  }
+
+  const rawPositions = Array.isArray(body.positions) ? body.positions : []
+
+  const positions = rawPositions
+    .map((p) => {
+      const nodeId = typeof p?.nodeId === 'string' ? p.nodeId.trim() : ''
+      const x = typeof p?.x === 'number' ? p.x : null
+      const y = typeof p?.y === 'number' ? p.y : null
+      if (!nodeId || x === null || y === null) return null
+      return { nodeId, x, y }
+    })
+    .filter((p): p is { nodeId: string; x: number; y: number } => p !== null)
+
+  if (!positions.length) {
+    return c.json({ updated: 0 })
+  }
+
+  await updateNodePositions(c.env.DB, conversationId, positions)
+
+  return c.json({ updated: positions.length })
 })
 
 app.post('/api/messages', async (c) => {
