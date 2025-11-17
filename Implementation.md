@@ -30,28 +30,28 @@
 
 ## Phase 3 – Chat without AI (echo or dummy)
 
-- [ ] Create local-only “send message” behavior:
-- [ ] Sending a message only updates local state, no backend yet.
-- [ ] Add backend route /api/messages that just echoes or returns dummy AI text.
-- [ ] Connect frontend “Send” to backend /api/messages.
-- [ ] Ensure messages show correctly in chat area.
+- [X] Create local-only “send message” behavior:
+- [X] Sending a message only updates local state, no backend yet.
+- [X] Add backend route /api/messages that just echoes or returns dummy AI text.
+- [X] Connect frontend “Send” to backend /api/messages.
+- [X] Ensure messages show correctly in chat area.
 
 ## Phase 4 – Graph integration (React Flow)
 
-- [ ] Represent local messages as nodes and edges for React Flow.
+- [-] Represent local messages as nodes and edges for React Flow.
 - [ ] Connect graph component to Zustand store.
 - [ ] When new messages arrive (user + AI), update the graph locally.
 - [ ] Integrate with backend /api/graph/:conversationId so:
-- [ ] On page load, you fetch the saved graph from D1.
+    - [ ] On page load, you fetch the saved graph from D1.
 - [ ] Graph and chat are in sync after reload.
 
 ## Phase 5 – Real AI integration
 
 - [ ] Add real AI API call in /api/messages backend route:
-- [ ] Load past messages from DB.
-- [ ] Call AI API, parse response.
-- [ ] Add environment variables for AI key in Worker.
-- [ ] Add error handling and simple retry or error message to frontend.
+    - [ ] Load past messages from DB.
+    - [ ] Call AI API, parse response.
+    - [ ] Add environment variables for AI key in Worker.
+    - [ ] Add error handling and simple retry or error message to frontend.
 
 ## Phase 6 – Polishing the MVP
 

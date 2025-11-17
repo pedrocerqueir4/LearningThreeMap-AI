@@ -28,6 +28,7 @@ type GraphActions = {
   setGraphLoading: (conversationId: string, loading: boolean) => void
   setGraphError: (conversationId: string, error: string | null) => void
   fetchGraph: (conversationId: string) => Promise<void>
+  removeConversationGraph: (conversationId: string) => void
 }
 
 export const useGraphStore = create<GraphState & GraphActions>((set) => ({
@@ -83,5 +84,13 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         },
       }))
     }
+  },
+  removeConversationGraph: (conversationId: string) => {
+    set((state) => {
+      const { [conversationId]: _graph, ...graphByConversationId } = state.graphByConversationId
+      const { [conversationId]: _loading, ...loadingByConversationId } = state.loadingByConversationId
+      const { [conversationId]: _error, ...errorByConversationId } = state.errorByConversationId
+      return { graphByConversationId, loadingByConversationId, errorByConversationId }
+    })
   },
 }))

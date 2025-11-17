@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import type { Conversation } from './store/conversations'
 import { useConversationStore } from './store/conversations'
 import { useGraphStore } from './store/graph'
+import { useMessageStore } from './store/messages'
+import { ConversationGraph } from './components/ConversationGraph'
 
 function App() {
   const {
@@ -11,18 +13,43 @@ function App() {
     setCurrentConversation,
     fetchConversations,
     createConversation,
+    persistDraftConversation,
+    touchConversation,
+    deleteConversation,
     loading,
     error,
   } = useConversationStore()
 
-  const { graphByConversationId, loadingByConversationId, errorByConversationId, fetchGraph } =
-    useGraphStore()
+  const { graphByConversationId, fetchGraph } = useGraphStore()
+
+  const { sendMessage } = useMessageStore()
+
+  const [menuConversationId, setMenuConversationId] = useState<string | null>(null)
+  const [isTitleLoading, setIsTitleLoading] = useState(false)
 
   useEffect(() => {
     fetchConversations()
   }, [fetchConversations])
 
+  useEffect(() => {
+    const handleWindowClick = () => setMenuConversationId(null)
+    window.addEventListener('click', handleWindowClick)
+    return () => window.removeEventListener('click', handleWindowClick)
+  }, [])
+
   const handleNewConversation = async () => {
+    const current = selectedConversation
+
+    // If the current conversation is a local draft (not in DB yet),
+    // don't create another draft. Instead, bump its timestamp and
+    // trigger the title underline animation as visual feedback.
+    if (current?.isDraft) {
+      touchConversation(current.id)
+      setIsTitleLoading(true)
+      window.setTimeout(() => setIsTitleLoading(false), 600)
+      return
+    }
+
     await createConversation()
   }
 
@@ -39,12 +66,41 @@ function App() {
     }
   }, [selectedConversation, graphByConversationId, fetchGraph])
 
+  const handleSendFromNode = async (fromNodeId: string | null, content: string) => {
+    if (!selectedConversation) return
+
+    let conversationId = selectedConversation.id
+
+    // Persist draft conversation to backend on first message so it's not empty in DB
+    if (selectedConversation.isDraft) {
+      const persisted = await persistDraftConversation(selectedConversation.id)
+      if (!persisted) return
+      conversationId = persisted.id
+    }
+
+    await sendMessage(conversationId, content, fromNodeId ?? undefined)
+    await fetchGraph(conversationId)
+  }
+
+  const handleToggleMenu = (event: React.MouseEvent, conversationId: string) => {
+    event.stopPropagation()
+    setMenuConversationId((current) => (current === conversationId ? null : conversationId))
+  }
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    await deleteConversation(conversationId)
+    setMenuConversationId(null)
+  }
+
   return (
     <div className="app-root">
       <aside className="sidebar">
         <div className="sidebar-header">
           <h1 className="app-title">LearningThreeMap</h1>
           <button className="primary-button" onClick={handleNewConversation} disabled={loading}>
+            <span aria-hidden="true" className="primary-button-icon">
+              +
+            </span>
             New conversation
           </button>
         </div>
@@ -58,10 +114,37 @@ function App() {
                   ? 'conversation-item conversation-item--active'
                   : 'conversation-item'
               }
-              onClick={() => setCurrentConversation(conv.id)}
+              onClick={() => {
+                setCurrentConversation(conv.id)
+                setMenuConversationId(null)
+              }}
             >
-              <div className="conversation-title">{conv.title}</div>
-              <div className="conversation-meta">{new Date(conv.created_at).toLocaleString()}</div>
+              <div className="conversation-text">
+                <div className="conversation-title">{conv.title}</div>
+                <div className="conversation-meta">{new Date(conv.created_at).toLocaleString()}</div>
+              </div>
+              <div className="conversation-actions">
+                <button
+                  type="button"
+                  className="conversation-menu-button"
+                  aria-haspopup="menu"
+                  aria-expanded={menuConversationId === conv.id}
+                  onClick={(event) => handleToggleMenu(event, conv.id)}
+                >
+                  ⋯
+                </button>
+                {menuConversationId === conv.id && (
+                  <div className="conversation-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="conversation-menu-item"
+                      onClick={() => handleDeleteConversation(conv.id)}
+                    >
+                      Delete conversation
+                    </button>
+                  </div>
+                )}
+              </div>
             </li>
           ))}
           {conversations.length === 0 && !loading && (
@@ -70,7 +153,16 @@ function App() {
         </ul>
       </aside>
       <main className="canvas">
-        <h1 className="roadmaps-title">Roadmaps</h1>
+        <h1 className="roadmaps-title">
+          Learningflow
+          <span
+            className={
+              isTitleLoading
+                ? 'roadmaps-underline roadmaps-underline--active'
+                : 'roadmaps-underline'
+            }
+          />
+        </h1>
         <section className="roadmap-graph">
           {conversations.length === 0 && (
             <div className="roadmap-empty">Your roadmap will appear here once you create conversations.</div>
@@ -79,34 +171,11 @@ function App() {
             <div className="roadmap-empty">Select a conversation from the left to see its roadmap.</div>
           )}
           {selectedConversation && (
-            <div className="roadmap-column">
-              <div className="roadmap-node">{selectedConversation.title}</div>
-              <div className="roadmap-connector" />
-              {loadingByConversationId[selectedConversation.id] && (
-                <div className="roadmap-empty">Loading workflow…</div>
-              )}
-              {errorByConversationId[selectedConversation.id] && (
-                <div className="roadmap-empty">
-                  Failed to load workflow: {errorByConversationId[selectedConversation.id]}
-                </div>
-              )}
-              {!loadingByConversationId[selectedConversation.id] &&
-                !errorByConversationId[selectedConversation.id] &&
-                graphByConversationId[selectedConversation.id] &&
-                graphByConversationId[selectedConversation.id].nodes.length === 0 && (
-                  <div className="roadmap-empty">No steps yet for this conversation.</div>
-                )}
-              {!loadingByConversationId[selectedConversation.id] &&
-                !errorByConversationId[selectedConversation.id] &&
-                graphByConversationId[selectedConversation.id] &&
-                graphByConversationId[selectedConversation.id].nodes.length > 0 &&
-                graphByConversationId[selectedConversation.id].nodes.map((node) => (
-                  <div key={node.id}>
-                    <div className="roadmap-node">{node.label}</div>
-                    <div className="roadmap-connector" />
-                  </div>
-                ))}
-            </div>
+            <ConversationGraph
+              conversationId={selectedConversation.id}
+              graph={graphByConversationId[selectedConversation.id] ?? null}
+              onSendFromNode={handleSendFromNode}
+            />
           )}
         </section>
       </main>
