@@ -207,22 +207,72 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       }
     })
 
+    // Track occupied positions so we can place new draft nodes near their parent
+    // without heavily overlapping existing nodes.
+    const occupiedPositions: { x: number; y: number }[] = reactFlowNodes.map((n) => n.position)
+
+    const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.hypot(a.x - b.x, a.y - b.y)
+
+    const MIN_DISTANCE = 180
+    const OFFSETS: { x: number; y: number }[] = [
+      { x: 0, y: 220 },
+      { x: 260, y: 0 },
+      { x: -260, y: 0 },
+      { x: 260, y: 220 },
+      { x: -260, y: 220 },
+      { x: 0, y: -220 },
+    ]
+
+    const findFreePosition = (base: { x: number; y: number }) => {
+      for (const offset of OFFSETS) {
+        const candidate = { x: base.x + offset.x, y: base.y + offset.y }
+        const collides = occupiedPositions.some((p) => distance(p, candidate) < MIN_DISTANCE)
+        if (!collides) {
+          occupiedPositions.push(candidate)
+          return candidate
+        }
+      }
+
+      // Fallback: push slightly further down from the base to avoid a perfect overlap.
+      const candidate = { x: base.x, y: base.y + 240 }
+      occupiedPositions.push(candidate)
+      return candidate
+    }
+
     // Add local draft nodes (empty question boxes)
-    const draftNodes: Node<QaNodeData>[] = drafts.map((draft, index) => ({
-      id: draft.id,
-      type: 'qa',
-      position: { x: 0, y: (pairs.length + index) * 220 },
-      data: {
+    const draftNodes: Node<QaNodeData>[] = drafts.map((draft, index) => {
+      // Default stacking for root drafts (created from the bottom toolbar).
+      let base = { x: 0, y: (pairs.length + index) * 220 }
+
+      if (draft.anchorNodeId) {
+        const sourcePairId = pairIdByAnchorNodeId.get(draft.anchorNodeId)
+        if (sourcePairId) {
+          const parentNode = reactFlowNodes.find((n) => n.id === sourcePairId)
+          if (parentNode) {
+            base = parentNode.position
+          }
+        }
+      }
+
+      const position = findFreePosition(base)
+
+      return {
         id: draft.id,
-        mode: 'draft',
-        userText: null,
-        aiText: null,
-        anchorNodeId: draft.anchorNodeId,
-        onSend: handleSendFromDraft,
-        onCreateDraftBelow: handleCreateDraftBelow,
-        isZoomed: zoomedNodeId === draft.id,
-      },
-    }))
+        type: 'qa',
+        position,
+        data: {
+          id: draft.id,
+          mode: 'draft',
+          userText: null,
+          aiText: null,
+          anchorNodeId: draft.anchorNodeId,
+          onSend: handleSendFromDraft,
+          onCreateDraftBelow: handleCreateDraftBelow,
+          isZoomed: zoomedNodeId === draft.id,
+        },
+      }
+    })
 
     reactFlowNodes.push(...draftNodes)
 

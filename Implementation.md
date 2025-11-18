@@ -38,12 +38,12 @@
 
 ## Phase 4 – Graph integration (React Flow)
 
-- [-] Represent local messages as nodes and edges for React Flow.
-- [ ] Connect graph component to Zustand store.
-- [ ] When new messages arrive (user + AI), update the graph locally.
-- [ ] Integrate with backend /api/graph/:conversationId so:
-    - [ ] On page load, you fetch the saved graph from D1.
-- [ ] Graph and chat are in sync after reload.
+- [X] Represent local messages as nodes and edges for React Flow.
+- [X] Connect graph component to Zustand store.
+- [X] When new messages arrive (user + AI), update the graph locally.
+- [X] Integrate with backend /api/graph/:conversationId so:
+    - [X] On page load, you fetch the saved graph from D1.
+- [X] Graph and chat are in sync after reload.
 
 ## Phase 5 – Real AI integration
 
