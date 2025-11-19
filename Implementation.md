@@ -47,11 +47,11 @@
 
 ## Phase 5 – Real AI integration
 
-- [ ] Add real AI API call in /api/messages backend route:
-    - [ ] Load past messages from DB.
-    - [ ] Call AI API, parse response.
-    - [ ] Add environment variables for AI key in Worker.
-    - [ ] Add error handling and simple retry or error message to frontend.
+- [X] Add real AI API call in /api/messages backend route:
+    - [X] Load past messages from DB.
+    - [X] Call AI API, parse response.
+    - [X] Add environment variables for AI key in Worker.
+    - [X] Add error handling and simple retry or error message to frontend.
 
 ## Phase 6 – Polishing the MVP
 

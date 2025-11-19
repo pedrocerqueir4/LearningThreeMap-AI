@@ -28,12 +28,12 @@
 			"database_id": "4db8497a-d597-4da2-a5b1-6c1538d4bf09",
 			"remote": true
 		}
-	]
+	],
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
-	// "vars": { "MY_VARIABLE": "production_value" }
+	//"vars": { }
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/

@@ -38,6 +38,20 @@ export async function listConversations(db: D1Database): Promise<Conversation[]>
   return (res.results || []) as Conversation[]
 }
 
+export async function listMessagesForConversation(
+  db: D1Database,
+  conversationId: string,
+  limit = 20,
+): Promise<Message[]> {
+  const res = await db
+    .prepare(
+      'SELECT id, conversation_id, author, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ?',
+    )
+    .bind(conversationId, limit)
+    .all<Message>()
+  return (res.results || []) as Message[]
+}
+
 export async function getGraph(db: D1Database, conversationId: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
   const nodesRes = await db
     .prepare(
@@ -80,6 +94,7 @@ export async function createMessageWithDummyAI(
   conversationId: string,
   content: string,
   fromNodeId?: string | null,
+  aiOverrideContent?: string | null,
 ): Promise<{ userMessage: Message; aiMessage: Message; graphDelta: GraphDelta }> {
   const now = new Date().toISOString()
 
@@ -91,7 +106,7 @@ export async function createMessageWithDummyAI(
     created_at: now,
   }
 
-  const aiContent = `Echo: ${content}`
+  const aiContent = aiOverrideContent ?? `Echo: ${content}`
   const aiMessage: Message = {
     id: crypto.randomUUID(),
     conversation_id: conversationId,

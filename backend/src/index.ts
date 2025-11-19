@@ -19,9 +19,10 @@ import {
   createMessageWithDummyAI,
   deleteConversation,
   updateNodePositions,
+  listMessagesForConversation,
 } from './db'
 
-type Bindings = { DB: D1Database }
+type Bindings = { DB: D1Database; AI_API_KEY?: string }
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -106,7 +107,80 @@ app.post('/api/messages', async (c) => {
     return c.json({ error: 'conversationId and content are required' }, 400)
   }
 
-  const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeId)
+  // If no API key is configured, fall back to the simple echo behavior.
+  const apiKey = c.env.AI_API_KEY
+  if (!apiKey) {
+    const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeId)
+    return c.json(result, 201)
+  }
+
+  // Load recent conversation history for context (best-effort).
+  let history: Awaited<ReturnType<typeof listMessagesForConversation>> = []
+  try {
+    history = await listMessagesForConversation(c.env.DB, conversationId, 20)
+  } catch (err) {
+    console.error('Failed to load message history for AI:', err)
+  }
+
+  // Build Google Gemini contents from history and current user message
+  const systemInstruction = 'You are a helpful learning assistant. Answer concisely and clearly, focusing on the user question.'
+  const geminiContents = [
+    ...history.map((m) => ({
+      role: m.author === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }],
+    })),
+    { role: 'user', parts: [{ text: content }] },
+  ] as { role: 'user' | 'model'; parts: { text: string }[] }[]
+
+  const callAiOnce = async () => {
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        /*config: {
+          systemInstruction: systemInstruction,
+        },*/
+        contents: geminiContents,
+      }),
+    })
+
+    if (!response.ok) {
+      const errBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
+      const msg = errBody?.error?.message ?? `AI request failed with status ${response.status}`
+      throw new Error(msg)
+    }
+
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[]
+    }
+    const aiText = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim()
+    if (!aiText) {
+      throw new Error('AI returned an empty response')
+    }
+    return aiText
+  }
+
+  let aiContent: string
+  try {
+    aiContent = await callAiOnce()
+  } catch (firstError) {
+    console.error('AI call failed (first attempt):', firstError)
+    try {
+      aiContent = await callAiOnce()
+    } catch (secondError) {
+      console.error('AI call failed (second attempt):', secondError)
+      return c.json({ error: 'Failed to generate AI response. Please try again.' }, 500)
+    }
+  }
+
+  const result = await createMessageWithDummyAI(
+    c.env.DB,
+    conversationId,
+    content,
+    fromNodeId,
+    aiContent,
+  )
   return c.json(result, 201)
 })
 
