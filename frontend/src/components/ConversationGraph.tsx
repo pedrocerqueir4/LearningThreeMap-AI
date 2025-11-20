@@ -18,7 +18,7 @@ import { useGraphStore } from '../store/graph'
 export type ConversationGraphProps = {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null
   conversationId: string
-  onSendFromNode: (fromNodeId: string | null, content: string) => Promise<void>
+  onSendFromNode: (fromNodeIds: string[] | null, content: string) => Promise<void>
 }
 
 type QaNodeData = {
@@ -27,7 +27,8 @@ type QaNodeData = {
   userText: string | null
   aiText: string | null
   anchorNodeId: string | null
-  onSend: (fromNodeId: string | null, content: string, draftId: string) => Promise<void>
+  fromNodeIds: string[] | null
+  onSend: (fromNodeIds: string[] | null, content: string, draftId: string) => Promise<void>
   onCreateDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
   isZoomed: boolean
 }
@@ -45,7 +46,13 @@ const QaNode = ({ data }: NodeProps<QaNodeData>) => {
     setSending(true)
     setError(null)
     try {
-      await data.onSend(data.anchorNodeId ?? null, text, data.id)
+      const effectiveFromNodeIds =
+        data.fromNodeIds && data.fromNodeIds.length
+          ? data.fromNodeIds
+          : data.anchorNodeId
+          ? [data.anchorNodeId]
+          : []
+      await data.onSend(effectiveFromNodeIds.length ? effectiveFromNodeIds : null, text, data.id)
       setDraft('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
@@ -104,6 +111,7 @@ const nodeTypes = { qa: QaNode }
 type DraftNode = {
   id: string
   anchorNodeId: string | null
+  fromNodeIds: string[]
 }
 
 function InnerConversationGraph({ graph, conversationId, onSendFromNode }: ConversationGraphProps) {
@@ -111,30 +119,32 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const [nodes, setNodes, onNodesChange] = useNodesState<QaNodeData>([])
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<DraftNode[]>([])
-  const { updateNodePositions } = useGraphStore()
+  const { updateNodePositions, fetchGraph } = useGraphStore()
+  const [selectedAnchorNodeIds, setSelectedAnchorNodeIds] = useState<string[]>([])
+  const [selectionMode, setSelectionMode] = useState<'none' | 'ask' | 'delete'>('none')
 
   // Reset drafts when conversation changes
   useEffect(() => {
     setDrafts([])
+    setSelectedAnchorNodeIds([])
+    setSelectionMode('none')
   }, [conversationId])
 
   const handleCreateDraftBelow = useCallback((nodeId: string, anchorNodeId: string | null) => {
     setDrafts((current) => [
       ...current,
-      { id: `draft-${Math.random().toString(36).slice(2)}`, anchorNodeId: anchorNodeId ?? nodeId },
+      {
+        id: `draft-${Math.random().toString(36).slice(2)}`,
+        anchorNodeId: anchorNodeId ?? nodeId,
+        fromNodeIds: [anchorNodeId ?? nodeId],
+      },
     ])
   }, [])
 
-  const handleCreateRootDraft = useCallback(() => {
-    setDrafts((current) => [
-      ...current,
-      { id: `draft-${Math.random().toString(36).slice(2)}`, anchorNodeId: null },
-    ])
-  }, [])
 
   const handleSendFromDraft = useCallback(
-    async (fromNodeId: string | null, content: string, draftId: string) => {
-      await onSendFromNode(fromNodeId, content)
+    async (fromNodeIds: string[] | null, content: string, draftId: string) => {
+      await onSendFromNode(fromNodeIds, content)
       setDrafts((current) => current.filter((d) => d.id !== draftId))
     },
     [onSendFromNode],
@@ -200,10 +210,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           userText: p.userNode.label,
           aiText: p.aiNode?.label ?? null,
           anchorNodeId: p.anchorNodeId,
+          fromNodeIds: null,
           onSend: handleSendFromDraft,
           onCreateDraftBelow: handleCreateDraftBelow,
           isZoomed: zoomedNodeId === p.id,
         },
+        selected: selectedAnchorNodeIds.includes(p.anchorNodeId),
       }
     })
 
@@ -267,10 +279,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           userText: null,
           aiText: null,
           anchorNodeId: draft.anchorNodeId,
+          fromNodeIds: draft.fromNodeIds,
           onSend: handleSendFromDraft,
           onCreateDraftBelow: handleCreateDraftBelow,
           isZoomed: zoomedNodeId === draft.id,
         },
+        selected: selectedAnchorNodeIds.includes(draft.anchorNodeId ?? draft.id),
       }
     })
 
@@ -299,19 +313,27 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
     // Local edges from parent QA pair to draft nodes, so new nodes are connected visually
     for (const draft of drafts) {
-      if (!draft.anchorNodeId) continue
-      const sourcePairId = pairIdByAnchorNodeId.get(draft.anchorNodeId)
-      if (!sourcePairId) continue
+      const sourceAnchors =
+        draft.fromNodeIds && draft.fromNodeIds.length
+          ? draft.fromNodeIds
+          : draft.anchorNodeId
+          ? [draft.anchorNodeId]
+          : []
 
-      reactFlowEdges.push({
-        id: `draft-edge-${draft.id}`,
-        source: sourcePairId,
-        target: draft.id,
-        type: 'smoothstep',
-        markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#111827' },
-        style: { stroke: '#111827', strokeWidth: 2 },
-        animated: false,
-      })
+      for (const anchorId of sourceAnchors) {
+        const sourcePairId = pairIdByAnchorNodeId.get(anchorId)
+        if (!sourcePairId) continue
+
+        reactFlowEdges.push({
+          id: `draft-edge-${draft.id}-${sourcePairId}`,
+          source: sourcePairId,
+          target: draft.id,
+          type: 'smoothstep',
+          markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#111827' },
+          style: { stroke: '#111827', strokeWidth: 2 },
+          animated: false,
+        })
+      }
     }
 
     return { computedNodes: reactFlowNodes, edges: reactFlowEdges }
@@ -322,6 +344,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     drafts,
     handleSendFromDraft,
     handleCreateDraftBelow,
+    selectedAnchorNodeIds,
   ])
 
   useEffect(() => {
@@ -341,8 +364,27 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     [setCenter],
   )
 
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node<QaNodeData>) => {
+      const anchor = node.data.anchorNodeId ?? node.id
+      setSelectedAnchorNodeIds((current) => {
+        if (selectionMode === 'none') {
+          return current.includes(anchor) ? [] : [anchor]
+        }
+        const exists = current.includes(anchor)
+        if (exists) {
+          return current.filter((id) => id !== anchor)
+        }
+        return [...current, anchor]
+      })
+    },
+    [selectionMode],
+  )
+
   const onPaneClick = useCallback(() => {
     setZoomedNodeId(null)
+    setSelectedAnchorNodeIds([])
+    setSelectionMode('none')
     fitView({ padding: 0.2, duration: 200 })
   }, [fitView])
 
@@ -370,15 +412,128 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     }
   }, [fitView, computedNodes.length])
 
+  const handleToggleAskSelection = useCallback(() => {
+    if (selectionMode !== 'ask') {
+      setSelectionMode('ask')
+      setSelectedAnchorNodeIds([])
+      return
+    }
+
+    if (!selectedAnchorNodeIds.length) {
+      setSelectionMode('none')
+      return
+    }
+
+    setDrafts((current) => {
+      const anchorNodeId = selectedAnchorNodeIds[0] ?? null
+      const fromNodeIds = [...selectedAnchorNodeIds]
+      const newDraft = {
+        id: `draft-${Math.random().toString(36).slice(2)}`,
+        anchorNodeId,
+        fromNodeIds,
+      }
+      return [...current, newDraft]
+    })
+
+    setSelectionMode('none')
+    setSelectedAnchorNodeIds([])
+  }, [selectionMode, selectedAnchorNodeIds])
+
+  const handleToggleDeleteSelection = useCallback(async () => {
+    if (selectionMode !== 'delete') {
+      setSelectionMode('delete')
+      setSelectedAnchorNodeIds([])
+      return
+    }
+
+    if (!selectedAnchorNodeIds.length) {
+      setSelectionMode('none')
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Delete the selected node(s) and their downstream nodes? Nodes that also have other parents will be kept.',
+    )
+    if (!confirmed) {
+      setSelectionMode('none')
+      return
+    }
+
+    try {
+      const rawNodes = graph?.nodes ?? []
+      const rawEdges = graph?.edges ?? []
+      const nodeById = new Map<string, GraphNode>()
+      for (const n of rawNodes) nodeById.set(n.id, n)
+
+      const resolveRootId = (anchorId: string): string => {
+        const anchorNode = nodeById.get(anchorId)
+        if (!anchorNode) return anchorId
+        if (anchorNode.type === 'user') return anchorId
+
+        const incoming = rawEdges.filter((e) => e.target === anchorId)
+        for (const e of incoming) {
+          const src = nodeById.get(e.source)
+          if (src?.type === 'user') {
+            return src.id
+          }
+        }
+        return anchorId
+      }
+
+      const rootIds = Array.from(new Set(selectedAnchorNodeIds.map(resolveRootId)))
+
+      for (const nodeId of rootIds) {
+        const res = await fetch(
+          `/api/graph/${conversationId}/nodes/${encodeURIComponent(nodeId)}`,
+          {
+            method: 'DELETE',
+          },
+        )
+        if (!res.ok) {
+          continue
+        }
+      }
+      await fetchGraph(conversationId)
+      setDrafts([])
+    } catch {
+    }
+
+    setSelectionMode('none')
+    setSelectedAnchorNodeIds([])
+  }, [selectionMode, selectedAnchorNodeIds, conversationId, fetchGraph, graph])
+
+  const handleCreateRootDraftWithCenter = useCallback(() => {
+    const newDraftId = `draft-${Math.random().toString(36).slice(2)}`
+    setDrafts((current) => [
+      ...current,
+      { id: newDraftId, anchorNodeId: null, fromNodeIds: [] },
+    ])
+
+    setTimeout(() => {
+      fitView({ duration: 300 })
+    }, 50)
+  }, [fitView])
+
   return (
     <div className="graph-shell">
-      <div className="graph-flow">
+      <div
+        className="graph-flow"
+        style={{
+          cursor:
+            selectionMode === 'ask'
+              ? 'help'
+              : selectionMode === 'delete'
+              ? 'not-allowed'
+              : 'auto',
+        }}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
           onInit={onInit}
+          onNodeClick={onNodeClick}
           onNodeDoubleClick={onNodeDoubleClick}
           onPaneClick={onPaneClick}
           onNodeDragStop={onNodeDragStop}
@@ -394,10 +549,38 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         <button
           type="button"
           className="graph-toolbar-button"
-          onClick={handleCreateRootDraft}
+          onClick={handleCreateRootDraftWithCenter}
         >
           <span className="graph-toolbar-button-icon">+</span>
           <span className="graph-toolbar-button-label">New starting node</span>
+        </button>
+        <button
+          type="button"
+          className={
+            selectionMode === 'ask'
+              ? 'graph-toolbar-button graph-toolbar-button--active'
+              : 'graph-toolbar-button'
+          }
+          onClick={handleToggleAskSelection}
+        >
+          <span className="graph-toolbar-button-icon">?</span>
+          <span className="graph-toolbar-button-label">
+            {selectionMode === 'ask' ? 'Confirm selection' : 'Ask about selection'}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={
+            selectionMode === 'delete'
+              ? 'graph-toolbar-button graph-toolbar-button--active'
+              : 'graph-toolbar-button'
+          }
+          onClick={handleToggleDeleteSelection}
+        >
+          <span className="graph-toolbar-button-icon">{selectionMode === 'delete' ? '✓' : '×'}</span>
+          <span className="graph-toolbar-button-label">
+            {selectionMode === 'delete' ? 'Confirm delete' : 'Delete node'}
+          </span>
         </button>
       </div>
     </div>

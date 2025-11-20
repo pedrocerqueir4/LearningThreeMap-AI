@@ -20,6 +20,10 @@ import {
   deleteConversation,
   updateNodePositions,
   listMessagesForConversation,
+  listMessagesForNodeAncestors,
+  deleteNodeSubtreeRespectingJoins,
+  buildEchoFromAncestors,
+  updateConversationTitle,
 } from './db'
 
 type Bindings = { DB: D1Database; AI_API_KEY?: string }
@@ -38,6 +42,27 @@ app.post('/api/conversations', async (c) => {
 app.get('/api/conversations', async (c) => {
   const list = await listConversations(c.env.DB)
   return c.json(list)
+})
+
+app.put('/api/conversations/:conversationId', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  if (!conversationId) {
+    return c.json({ error: 'conversationId is required' }, 400)
+  }
+
+  const body = await c.req.json().catch(() => ({})) as { title?: string }
+  const title = typeof body?.title === 'string' && body.title.trim().length > 0 ? body.title.trim() : null
+
+  if (!title) {
+    return c.json({ error: 'title is required' }, 400)
+  }
+
+  const updated = await updateConversationTitle(c.env.DB, conversationId, title)
+  if (!updated) {
+    return c.json({ error: 'Conversation not found' }, 404)
+  }
+
+  return c.json(updated)
 })
 
 app.delete('/api/conversations/:conversationId', async (c) => {
@@ -96,12 +121,15 @@ app.post('/api/messages', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     conversationId?: string
     content?: string
-    fromNodeId?: string
+    fromNodeIds?: string[]
   }
 
   const conversationId = body.conversationId?.trim()
   const content = body.content?.trim()
-  const fromNodeId = body.fromNodeId?.trim() || null
+  const rawFromNodeIds = Array.isArray(body.fromNodeIds) ? body.fromNodeIds : []
+  const fromNodeIds = rawFromNodeIds
+    .map((id) => (typeof id === 'string' ? id.trim() : ''))
+    .filter((id) => id.length > 0)
 
   if (!conversationId || !content) {
     return c.json({ error: 'conversationId and content are required' }, 400)
@@ -110,14 +138,28 @@ app.post('/api/messages', async (c) => {
   // If no API key is configured, fall back to the simple echo behavior.
   const apiKey = c.env.AI_API_KEY
   if (!apiKey) {
-    const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeId)
+    let aiEcho = `Echo: ${content}`
+    try {
+      if (fromNodeIds.length) {
+        aiEcho = await buildEchoFromAncestors(c.env.DB, conversationId, fromNodeIds, content)
+      }
+    } catch (e) {
+    }
+    const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho)
     return c.json(result, 201)
   }
 
-  // Load recent conversation history for context (best-effort).
+  // Load graph-aware conversation history for context (best-effort).
+  // If fromNodeIds are provided, we only use messages attached to nodes
+  // that are ancestors of those nodes in the graph. For root questions
+  // (no fromNodeIds), we send the question without prior history.
   let history: Awaited<ReturnType<typeof listMessagesForConversation>> = []
   try {
-    history = await listMessagesForConversation(c.env.DB, conversationId, 20)
+    if (fromNodeIds.length) {
+      history = await listMessagesForNodeAncestors(c.env.DB, conversationId, fromNodeIds, 20)
+    } else {
+      history = []
+    }
   } catch (err) {
     console.error('Failed to load message history for AI:', err)
   }
@@ -133,7 +175,7 @@ app.post('/api/messages', async (c) => {
   ] as { role: 'user' | 'model'; parts: { text: string }[] }[]
 
   const callAiOnce = async () => {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -174,14 +216,25 @@ app.post('/api/messages', async (c) => {
     }
   }
 
-  const result = await createMessageWithDummyAI(
+  const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeIds, aiContent)
+  return c.json(result, 201)
+})
+
+app.delete('/api/graph/:conversationId/nodes/:nodeId', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  const nodeId = c.req.param('nodeId')
+
+  if (!conversationId || !nodeId) {
+    return c.json({ error: 'conversationId and nodeId are required' }, 400)
+  }
+
+  const { deletedNodeIds } = await deleteNodeSubtreeRespectingJoins(
     c.env.DB,
     conversationId,
-    content,
-    fromNodeId,
-    aiContent,
+    nodeId,
   )
-  return c.json(result, 201)
+
+  return c.json({ deletedNodeIds })
 })
 
 // Export para Cloudflare Worker

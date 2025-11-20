@@ -124,6 +124,29 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.conversation-title:hover {
+  opacity: 0.8;
+}
+
+.conversation-title-input {
+  font-size: 0.85rem;
+  font-weight: 500;
+  width: 100%;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid #4b5563;
+  border-radius: 0.35rem;
+  background-color: #27272f;
+  color: #e5e7eb;
+  font-family: inherit;
+}
+
+.conversation-title-input:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.1);
 }
 
 .conversation-meta {
@@ -244,6 +267,11 @@
 .qa-node--zoomed {
   transform: scale(1.02);
   box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+}
+
+.react-flow__node-qa.selected .qa-node {
+  border-color: #6b7280;
+  background-color: #e5e7eb;
 }
 
 .qa-node-body {
@@ -421,6 +449,18 @@
 
 .graph-toolbar-button-label {
   white-space: nowrap;
+}
+
+.graph-toolbar-button--active {
+  background-color: rgba(249, 250, 251, 0.12);
+}
+
+.react-flow__pane.ask-mode {
+  cursor: help;
+}
+
+.react-flow__pane.delete-mode {
+  cursor: not-allowed;
 }
 
 .roadmap-column {

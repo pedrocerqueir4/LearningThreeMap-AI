@@ -22,6 +22,7 @@ type ConversationActions = {
   persistDraftConversation: (draftId: string) => Promise<Conversation | null>
   touchConversation: (id: string) => void
   deleteConversation: (conversationId: string) => Promise<void>
+  updateConversationTitle: (conversationId: string, title: string) => Promise<void>
 }
 
 export const useConversationStore = create<ConversationState & ConversationActions>((set, get) => ({
@@ -130,6 +131,25 @@ export const useConversationStore = create<ConversationState & ConversationActio
           loading: false,
         }
       })
+    } catch (err) {
+      set({ loading: false, error: err instanceof Error ? err.message : 'Unknown error' })
+    }
+  },
+  updateConversationTitle: async (conversationId: string, title: string) => {
+    set({ loading: true, error: null })
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+      if (!res.ok) throw new Error('Failed to update conversation title')
+      const updated = (await res.json()) as Conversation
+
+      set((state) => ({
+        conversations: state.conversations.map((c) => (c.id === conversationId ? updated : c)),
+        loading: false,
+      }))
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : 'Unknown error' })
     }

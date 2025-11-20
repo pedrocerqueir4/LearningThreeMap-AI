@@ -16,6 +16,7 @@ function App() {
     persistDraftConversation,
     touchConversation,
     deleteConversation,
+    updateConversationTitle,
     loading,
     error,
   } = useConversationStore()
@@ -26,6 +27,8 @@ function App() {
 
   const [menuConversationId, setMenuConversationId] = useState<string | null>(null)
   const [isTitleLoading, setIsTitleLoading] = useState(false)
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
 
   useEffect(() => {
     fetchConversations()
@@ -66,7 +69,7 @@ function App() {
     }
   }, [selectedConversation, graphByConversationId, fetchGraph])
 
-  const handleSendFromNode = async (fromNodeId: string | null, content: string) => {
+  const handleSendFromNode = async (fromNodeIds: string[] | null, content: string) => {
     if (!selectedConversation) return
 
     let conversationId = selectedConversation.id
@@ -78,7 +81,7 @@ function App() {
       conversationId = persisted.id
     }
 
-    await sendMessage(conversationId, content, fromNodeId ?? undefined)
+    await sendMessage(conversationId, content, fromNodeIds)
     await fetchGraph(conversationId)
   }
 
@@ -90,6 +93,26 @@ function App() {
   const handleDeleteConversation = async (conversationId: string) => {
     await deleteConversation(conversationId)
     setMenuConversationId(null)
+  }
+
+  const handleStartEditTitle = (conversationId: string, currentTitle: string) => {
+    setEditingConversationId(conversationId)
+    setEditingTitle(currentTitle)
+    setMenuConversationId(null)
+  }
+
+  const handleSaveTitle = async (conversationId: string) => {
+    if (editingTitle.trim().length === 0) {
+      setEditingConversationId(null)
+      return
+    }
+    await updateConversationTitle(conversationId, editingTitle.trim())
+    setEditingConversationId(null)
+  }
+
+  const handleCancelEditTitle = () => {
+    setEditingConversationId(null)
+    setEditingTitle('')
   }
 
   return (
@@ -120,8 +143,31 @@ function App() {
               }}
             >
               <div className="conversation-text">
-                <div className="conversation-title">{conv.title}</div>
-                <div className="conversation-meta">{new Date(conv.created_at).toLocaleString()}</div>
+                {editingConversationId === conv.id ? (
+                  <input
+                    type="text"
+                    className="conversation-title-input"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onBlur={() => handleSaveTitle(conv.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTitle(conv.id)
+                      if (e.key === 'Escape') handleCancelEditTitle()
+                    }}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <div
+                      className="conversation-title"
+                      onDoubleClick={() => handleStartEditTitle(conv.id, conv.title)}
+                    >
+                      {conv.title}
+                    </div>
+                    <div className="conversation-meta">{new Date(conv.created_at).toLocaleString()}</div>
+                  </>
+                )}
               </div>
               <div className="conversation-actions">
                 <button
@@ -135,6 +181,13 @@ function App() {
                 </button>
                 {menuConversationId === conv.id && (
                   <div className="conversation-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="conversation-menu-item"
+                      onClick={() => handleStartEditTitle(conv.id, conv.title)}
+                    >
+                      Change title
+                    </button>
                     <button
                       type="button"
                       className="conversation-menu-item"

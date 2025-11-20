@@ -1,4 +1,23 @@
 export type Conversation = { id: string; title: string; created_at: string }
+
+export async function buildEchoFromAncestors(
+  db: D1Database,
+  conversationId: string,
+  fromNodeIds: string[],
+  question: string,
+): Promise<string> {
+  const history = await listMessagesForNodeAncestors(db, conversationId, fromNodeIds, 20)
+  const lines: string[] = []
+  if (history.length) {
+    lines.push('Echoing ancestors:')
+    for (const m of history) {
+      lines.push(`- ${m.author}: ${m.content}`)
+    }
+    lines.push('---')
+  }
+  lines.push(`Q: ${question}`)
+  return lines.join('\n')
+}
 export type Message = {
   id: string
   conversation_id: string
@@ -38,6 +57,15 @@ export async function listConversations(db: D1Database): Promise<Conversation[]>
   return (res.results || []) as Conversation[]
 }
 
+export async function updateConversationTitle(db: D1Database, conversationId: string, title: string): Promise<Conversation | null> {
+  const res = await db
+    .prepare("UPDATE conversations SET title = ? WHERE id = ? RETURNING id, title, created_at")
+    .bind(title, conversationId)
+    .first<Conversation>()
+  return res || null
+}
+
+// not used
 export async function listMessagesForConversation(
   db: D1Database,
   conversationId: string,
@@ -50,6 +78,192 @@ export async function listMessagesForConversation(
     .bind(conversationId, limit)
     .all<Message>()
   return (res.results || []) as Message[]
+}
+
+export async function listMessagesForNodeAncestors(
+  db: D1Database,
+  conversationId: string,
+  fromNodeIds: string[],
+  limit = 20,
+): Promise<Message[]> {
+  if (!fromNodeIds.length) {
+    return []
+  }
+  const nodesRes = await db
+    .prepare('SELECT id, message_id FROM nodes WHERE conversation_id = ?')
+    .bind(conversationId)
+    .all<{ id: string; message_id: string | null }>()
+  const edgesRes = await db
+    .prepare('SELECT source, target FROM edges WHERE conversation_id = ?')
+    .bind(conversationId)
+    .all<{ source: string; target: string }>()
+
+  const nodes = (nodesRes.results || []) as { id: string; message_id: string | null }[]
+  const edges = (edgesRes.results || []) as { source: string; target: string }[]
+
+  if (!nodes.length) {
+    return []
+  }
+
+  const incoming = new Map<string, string[]>()
+  for (const edge of edges) {
+    const list = incoming.get(edge.target) ?? []
+    list.push(edge.source)
+    incoming.set(edge.target, list)
+  }
+
+  const visited = new Set<string>()
+  const stack: string[] = [...fromNodeIds]
+  const ancestorNodeIds: string[] = []
+
+  while (stack.length) {
+    const current = stack.pop() as string
+    if (visited.has(current)) continue
+    visited.add(current)
+    ancestorNodeIds.push(current)
+    const parents = incoming.get(current)
+    if (parents) {
+      for (const parentId of parents) {
+        if (!visited.has(parentId)) {
+          stack.push(parentId)
+        }
+      }
+    }
+  }
+
+  if (!ancestorNodeIds.length) {
+    return []
+  }
+
+  const nodeById = new Map<string, { id: string; message_id: string | null }>()
+  for (const node of nodes) {
+    nodeById.set(node.id, node)
+  }
+
+  const messageIds: string[] = []
+  for (const nodeId of ancestorNodeIds) {
+    const node = nodeById.get(nodeId)
+    if (node?.message_id) {
+      messageIds.push(node.message_id)
+    }
+  }
+
+  if (!messageIds.length) {
+    return []
+  }
+
+  const placeholders = messageIds.map(() => '?').join(',')
+  const res = await db
+    .prepare(
+      `SELECT id, conversation_id, author, content, created_at FROM messages WHERE conversation_id = ? AND id IN (${placeholders}) ORDER BY created_at ASC`,
+    )
+    .bind(conversationId, ...messageIds)
+    .all<Message>()
+
+  const results = (res.results || []) as Message[]
+  if (results.length <= limit) {
+    return results
+  }
+  return results.slice(results.length - limit)
+}
+
+export async function deleteNodeSubtreeRespectingJoins(
+  db: D1Database,
+  conversationId: string,
+  rootNodeId: string,
+): Promise<{ deletedNodeIds: string[] }> {
+  const nodesRes = await db
+    .prepare('SELECT id, message_id FROM nodes WHERE conversation_id = ?')
+    .bind(conversationId)
+    .all<{ id: string; message_id: string | null }>()
+  const edgesRes = await db
+    .prepare('SELECT source, target FROM edges WHERE conversation_id = ?')
+    .bind(conversationId)
+    .all<{ source: string; target: string }>()
+
+  const nodes = (nodesRes.results || []) as { id: string; message_id: string | null }[]
+  const edges = (edgesRes.results || []) as { source: string; target: string }[]
+
+  if (!nodes.length) {
+    return { deletedNodeIds: [] }
+  }
+
+  const nodeIds = new Set(nodes.map((n) => n.id))
+  if (!nodeIds.has(rootNodeId)) {
+    return { deletedNodeIds: [] }
+  }
+
+  const outgoing = new Map<string, string[]>()
+  const incomingCount = new Map<string, number>()
+
+  for (const edge of edges) {
+    const outList = outgoing.get(edge.source) ?? []
+    outList.push(edge.target)
+    outgoing.set(edge.source, outList)
+
+    const currentIn = incomingCount.get(edge.target) ?? 0
+    incomingCount.set(edge.target, currentIn + 1)
+  }
+
+  const toDelete = new Set<string>()
+  const stack: string[] = [rootNodeId]
+
+  while (stack.length) {
+    const current = stack.pop() as string
+    if (toDelete.has(current)) continue
+    toDelete.add(current)
+
+    const children = outgoing.get(current)
+    if (!children) continue
+
+    for (const child of children) {
+      const indegree = incomingCount.get(child) ?? 0
+      if (indegree > 1) {
+        continue
+      }
+      if (!toDelete.has(child)) {
+        stack.push(child)
+      }
+    }
+  }
+
+  const deletedNodeIds = Array.from(toDelete)
+  if (!deletedNodeIds.length) {
+    return { deletedNodeIds: [] }
+  }
+
+  const nodeById = new Map<string, { id: string; message_id: string | null }>()
+  for (const node of nodes) {
+    nodeById.set(node.id, node)
+  }
+
+  const messageIds: string[] = []
+  for (const nodeId of deletedNodeIds) {
+    const node = nodeById.get(nodeId)
+    if (node?.message_id) {
+      messageIds.push(node.message_id)
+    }
+  }
+
+  if (messageIds.length) {
+    const msgPlaceholders = messageIds.map(() => '?').join(',')
+    await db
+      .prepare(
+        `DELETE FROM messages WHERE conversation_id = ? AND id IN (${msgPlaceholders})`,
+      )
+      .bind(conversationId, ...messageIds)
+      .run()
+  }
+
+  const nodePlaceholders = deletedNodeIds.map(() => '?').join(',')
+  await db
+    .prepare(
+      `DELETE FROM nodes WHERE conversation_id = ? AND id IN (${nodePlaceholders})`,
+    )
+    .bind(conversationId, ...deletedNodeIds)
+    .run()
+
+  return { deletedNodeIds }
 }
 
 export async function getGraph(db: D1Database, conversationId: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
@@ -93,7 +307,7 @@ export async function createMessageWithDummyAI(
   db: D1Database,
   conversationId: string,
   content: string,
-  fromNodeId?: string | null,
+  fromNodeIds?: string[] | null,
   aiOverrideContent?: string | null,
 ): Promise<{ userMessage: Message; aiMessage: Message; graphDelta: GraphDelta }> {
   const now = new Date().toISOString()
@@ -142,16 +356,19 @@ export async function createMessageWithDummyAI(
     )
     .run()
 
-  // Previous node for this conversation, if any. If a fromNodeId is provided use that,
+  // Previous nodes for this conversation, if any. If fromNodeIds are provided use them,
   // otherwise leave this message pair as a new starting point with no parent edge.
-  let prevNodeId: string | null = null
+  let prevNodeIds: string[] = []
 
-  if (fromNodeId) {
-    const specificPrev = await db
-      .prepare('SELECT id FROM nodes WHERE id = ? AND conversation_id = ?')
-      .bind(fromNodeId, conversationId)
-      .first<{ id: string } | null>()
-    prevNodeId = specificPrev?.id ?? null
+  if (fromNodeIds && fromNodeIds.length) {
+    const placeholders = fromNodeIds.map(() => '?').join(',')
+    const prevRes = await db
+      .prepare(
+        `SELECT id FROM nodes WHERE conversation_id = ? AND id IN (${placeholders})`,
+      )
+      .bind(conversationId, ...fromNodeIds)
+      .all<{ id: string }>()
+    prevNodeIds = ((prevRes.results || []) as { id: string }[]).map((r) => r.id)
   }
 
   const userNode: GraphNode = {
@@ -210,7 +427,7 @@ export async function createMessageWithDummyAI(
 
   const newEdges: GraphEdge[] = []
 
-  if (prevNodeId) {
+  for (const prevNodeId of prevNodeIds) {
     const edgeFromPrevToUser: GraphEdge = {
       id: crypto.randomUUID(),
       conversation_id: conversationId,
