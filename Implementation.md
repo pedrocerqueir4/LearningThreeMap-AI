@@ -61,7 +61,39 @@
 - [X] Add basic validation (empty message, max length).
 - [ ] Add minimal CORS configuration and deployment scripts.
 
-## Phase 7 – Advanced Features
+## Phase 7 – Visualization features
 
 - [X] Add dark/light mode toggle button in top-right corner.
 - [X] Add markdown rendering for AI responses (bold, italic, code, lists, etc.).
+
+## Phase 8 – Frontend Advanced Features
+
+- [ ] Implement node expansion on double-click.
+- [ ] Add zoom in and zoom out based in mouse wheel.
+- [ ] Make the sidebar collapsible.
+- [ ] Automatically generate the conversation title based on the first message.
+
+## Phase 9 - AI interaction
+
+- [ ] Define the AI agent (configure agent type via system prompt).
+- [ ] Allow editing of the user’s submitted question.
+
+## Phase 10 – Performance
+
+- [ ] Add rate limiting for AI calls.
+- [ ] Add KV-based caching for AI responses (theoretical idea).
+
+## Phase 11 – Security Features
+
+- [ ] Add authentication to the web app.
+- [ ] Add encryption for sensitive data.
+- [ ] Authentication based in google account.
+
+## Phase 12 - API acessability
+
+- [ ] Provide easier access to the API.
+
+## Phase 13 – Deployment
+
+- [ ] Deploy frontend to Cloudflare Pages.
+- [ ] Deploy backend to Cloudflare Workers.
