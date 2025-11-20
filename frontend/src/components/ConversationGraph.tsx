@@ -11,6 +11,7 @@ import ReactFlow, {
 } from 'reactflow'
 import type { Edge, Node, NodeProps } from 'reactflow'
 import 'reactflow/dist/style.css'
+import ReactMarkdown from 'react-markdown'
 
 import type { GraphEdge, GraphNode } from '../store/graph'
 import { useGraphStore } from '../store/graph'
@@ -73,16 +74,32 @@ const QaNode = ({ data }: NodeProps<QaNodeData>) => {
               className="qa-node-input qa-node-input--single"
               placeholder="Ask a question..."
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => setDraft(e.target.value.slice(0, 500))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && draft.trim()) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
               disabled={sending}
+              maxLength={500}
             />
             <button
               className="qa-node-send-button"
               onClick={handleSend}
               disabled={sending || !draft.trim()}
               type="button"
+              title={sending ? 'Sending...' : 'Send message'}
             >
-              <span className="qa-node-send-plus">+</span> Send
+              {sending ? (
+                <>
+                  <span className="qa-node-send-spinner">⟳</span> Sending...
+                </>
+              ) : (
+                <>
+                  <span className="qa-node-send-plus">+</span> Send
+                </>
+              )}
             </button>
           </div>
         </>
@@ -90,7 +107,27 @@ const QaNode = ({ data }: NodeProps<QaNodeData>) => {
         <>
           <div className="qa-node-body">
             {data.userText && <div className="qa-bubble qa-bubble--user">{data.userText}</div>}
-            {data.aiText && <div className="qa-bubble qa-bubble--ai">{data.aiText}</div>}
+            {data.aiText && (
+              <div className="qa-bubble qa-bubble--ai">
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }: any) => <p style={{ margin: '0.25rem 0' }}>{children}</p>,
+                    strong: ({ children }: any) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
+                    em: ({ children }: any) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
+                    code: ({ children }: any) => (
+                      <code style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '0.1rem 0.3rem', borderRadius: '0.2rem', fontFamily: 'monospace' }}>
+                        {children}
+                      </code>
+                    ),
+                    ul: ({ children }: any) => <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>{children}</ul>,
+                    ol: ({ children }: any) => <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>{children}</ol>,
+                    li: ({ children }: any) => <li style={{ margin: '0.1rem 0' }}>{children}</li>,
+                  }}
+                >
+                  {data.aiText}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
           {error && <div className="qa-node-error">{error}</div>}
           <button

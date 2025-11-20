@@ -55,8 +55,13 @@
 
 ## Phase 6 – Polishing the MVP
 
-- [ ] Improve node appearance (Tailwind-friendly, color by author).
-- [ ] Add loading indicators (sending message, waiting for AI).
-- [ ] Add simple conversation renaming and delete.
-- [ ] Add basic validation (empty message, max length).
+- [X] Improve node appearance (Tailwind-friendly, color by author).
+- [X] Add loading indicators (sending message, waiting for AI).
+- [X] Add simple conversation renaming and delete.
+- [X] Add basic validation (empty message, max length).
 - [ ] Add minimal CORS configuration and deployment scripts.
+
+## Phase 7 – Advanced Features
+
+- [X] Add dark/light mode toggle button in top-right corner.
+- [X] Add markdown rendering for AI responses (bold, italic, code, lists, etc.).

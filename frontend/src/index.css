@@ -5,6 +5,11 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 body {
@@ -14,6 +19,12 @@ body {
   overflow: hidden;
   background-color: #f5f2ec;
   color: #111827;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+:root[data-theme='dark'] body {
+  background-color: #1a1a1a;
+  color: #e5e7eb;
 }
 
 button {

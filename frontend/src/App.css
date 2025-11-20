@@ -255,7 +255,7 @@
 
 .qa-node {
   min-width: 260px;
-  max-width: 420px;
+  max-width: 840px;
   border-radius: 1.25rem;
   border: 2px solid #111827;
   background-color: #fefcf7;
@@ -345,6 +345,81 @@
 
 .qa-node-send-plus {
   font-weight: 600;
+}
+
+.qa-node-send-spinner {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.qa-node-input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qa-node-input:focus {
+  outline: none;
+  border-color: #4b5563;
+  box-shadow: 0 0 0 2px rgba(75, 85, 99, 0.1);
+}
+
+/* Dark mode support for QA nodes */
+:root[data-theme='dark'] .qa-node {
+  background-color: #27272f;
+  border-color: #3f3f46;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .qa-node--zoomed {
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='dark'] .react-flow__node-qa.selected .qa-node {
+  border-color: #9ca3af;
+  background-color: #3f3f46;
+}
+
+:root[data-theme='dark'] .qa-bubble--user {
+  background-color: #3f3f46;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .qa-bubble--ai {
+  background-color: #2e2e36;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .qa-node-input {
+  background-color: #3f3f46;
+  border-color: #52525b;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .qa-node-input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.1);
+}
+
+:root[data-theme='dark'] .qa-node-send-button {
+  background-color: #52525b;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .qa-node-send-button:hover:not(:disabled) {
+  background-color: #60a5fa;
+}
+
+:root[data-theme='dark'] .qa-node-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
 }
 
 .qa-node-error {
@@ -493,4 +568,131 @@
   margin: auto;
   text-align: center;
   padding: 0 1.5rem;
+}
+
+.theme-toggle-button {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 10;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 50%;
+  background-color: #e5e7eb;
+  border: 1px solid #d1d5db;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle-button:hover {
+  background-color: #d1d5db;
+  transform: scale(1.05);
+}
+
+.theme-toggle-button:active {
+  transform: scale(0.95);
+}
+
+:root[data-theme='dark'] .theme-toggle-button {
+  background-color: #3f3f46;
+  border-color: #52525b;
+  color: #fbbf24;
+}
+
+:root[data-theme='dark'] .theme-toggle-button:hover {
+  background-color: #52525b;
+}
+
+/* Dark mode colors for all components */
+:root[data-theme='dark'] .app-root {
+  background-color: #1a1a1a;
+}
+
+:root[data-theme='dark'] .sidebar {
+  background-color: #18181b;
+  border-right: 1px solid #27272f;
+}
+
+:root[data-theme='dark'] .canvas {
+  background-color: #1a1a1a;
+}
+
+:root[data-theme='dark'] .primary-button {
+  background-color: #27272f;
+  color: #e5e7eb;
+  border-color: #3f3f46;
+}
+
+:root[data-theme='dark'] .primary-button:hover {
+  background-color: #3f3f46;
+}
+
+:root[data-theme='dark'] .conversation-item {
+  background-color: #18181b;
+  border-color: #27272f;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .conversation-item--active {
+  background-color: #27272f;
+  border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .conversation-title {
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .conversation-meta {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .conversation-title-input {
+  background-color: #27272f;
+  color: #e5e7eb;
+  border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .conversation-title-input:focus {
+  border-color: #60a5fa;
+}
+
+:root[data-theme='dark'] .conversation-menu-button {
+  color: #9ca3af;
+}
+
+:root[data-theme='dark'] .conversation-menu-button:hover {
+  color: #f9fafb;
+}
+
+:root[data-theme='dark'] .conversation-menu {
+  background-color: #1f1f24;
+  border-color: #2e2e36;
+}
+
+:root[data-theme='dark'] .conversation-menu-item {
+  color: #fca5a5;
+}
+
+:root[data-theme='dark'] .conversation-menu-item:hover {
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+:root[data-theme='dark'] .roadmap-node {
+  background-color: #27272f;
+  border-color: #3f3f46;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .roadmap-connector {
+  background-color: #3f3f46;
+}
+
+:root[data-theme='dark'] .roadmap-empty {
+  color: #6b7280;
 }

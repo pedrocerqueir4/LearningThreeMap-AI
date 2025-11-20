@@ -4,6 +4,7 @@ import type { Conversation } from './store/conversations'
 import { useConversationStore } from './store/conversations'
 import { useGraphStore } from './store/graph'
 import { useMessageStore } from './store/messages'
+import { useThemeStore } from './store/theme'
 import { ConversationGraph } from './components/ConversationGraph'
 
 function App() {
@@ -25,6 +26,8 @@ function App() {
 
   const { sendMessage } = useMessageStore()
 
+  const { mode, setMode } = useThemeStore()
+
   const [menuConversationId, setMenuConversationId] = useState<string | null>(null)
   const [isTitleLoading, setIsTitleLoading] = useState(false)
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
@@ -33,6 +36,10 @@ function App() {
   useEffect(() => {
     fetchConversations()
   }, [fetchConversations])
+
+  useEffect(() => {
+    setMode(mode)
+  }, [mode, setMode])
 
   useEffect(() => {
     const handleWindowClick = () => setMenuConversationId(null)
@@ -206,6 +213,14 @@ function App() {
         </ul>
       </aside>
       <main className="canvas">
+        <button
+          className="theme-toggle-button"
+          onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
+          aria-label="Toggle dark mode"
+          title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {mode === 'light' ? '🌙' : '☀️'}
+        </button>
         <h1 className="roadmaps-title">
           Learningflow
           <span
