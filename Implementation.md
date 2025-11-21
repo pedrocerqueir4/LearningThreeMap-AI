@@ -68,10 +68,17 @@
 
 ## Phase 8 – Frontend Advanced Features
 
-- [ ] Implement node expansion on double-click.
-- [ ] Add zoom in and zoom out based in mouse wheel.
-- [ ] Make the sidebar collapsible.
-- [ ] Automatically generate the conversation title based on the first message.
+- [X] Implement node expansion on double-click.
+- [X] Add zoom in and zoom out based in mouse wheel, when in workflow mode
+- [X] Add scroll down and scroll up based in mouse wheel, when in chat only mode
+- [X] Make the sidebar collapsible.
+- [X] Automatically generate the conversation title based on the first message.
+- [] Improve design of the button
+- [] Increase width of the chat window in chat mode
+- [] Increase question size in chat mode
+- [] Make personalized box when deleting a conversation
+- [] Add animation in sidebar
+- [] Improve positioning of the nodes 
 
 ## Phase 9 - AI interaction
 

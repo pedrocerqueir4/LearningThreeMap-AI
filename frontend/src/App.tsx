@@ -32,6 +32,7 @@ function App() {
   const [isTitleLoading, setIsTitleLoading] = useState(false)
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     fetchConversations()
@@ -90,6 +91,9 @@ function App() {
 
     await sendMessage(conversationId, content, fromNodeIds)
     await fetchGraph(conversationId)
+    // Refresh conversations so any auto-generated title from the backend is
+    // reflected in the sidebar list.
+    await fetchConversations()
   }
 
   const handleToggleMenu = (event: React.MouseEvent, conversationId: string) => {
@@ -123,20 +127,34 @@ function App() {
   }
 
   return (
-    <div className="app-root">
-      <aside className="sidebar">
+    <div className={isSidebarCollapsed ? 'app-root app-root--sidebar-collapsed' : 'app-root'}>
+      <aside className={isSidebarCollapsed ? 'sidebar sidebar--collapsed' : 'sidebar'}>
         <div className="sidebar-header">
-          <h1 className="app-title">LearningThreeMap</h1>
-          <button className="primary-button" onClick={handleNewConversation} disabled={loading}>
-            <span aria-hidden="true" className="primary-button-icon">
-              +
-            </span>
-            New conversation
-          </button>
+          <div className="sidebar-header-top">
+            {!isSidebarCollapsed && <h1 className="app-title">LearningThreeMap</h1>}
+            <button
+              type="button"
+              className="sidebar-toggle-button"
+              onClick={() => setIsSidebarCollapsed((value) => !value)}
+              aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isSidebarCollapsed ? 'Show conversations' : 'Hide conversations'}
+            >
+              {isSidebarCollapsed ? '»' : '«'}
+            </button>
+          </div>
+          {!isSidebarCollapsed && (
+            <button className="primary-button" onClick={handleNewConversation} disabled={loading}>
+              <span aria-hidden="true" className="primary-button-icon">
+                +
+              </span>
+              New conversation
+            </button>
+          )}
         </div>
-        {error && <div className="error-banner">{error}</div>}
-        <ul className="conversation-list">
-          {conversations.map((conv: Conversation) => (
+        {!isSidebarCollapsed && error && <div className="error-banner">{error}</div>}
+        {!isSidebarCollapsed && (
+          <ul className="conversation-list">
+            {conversations.map((conv: Conversation) => (
             <li
               key={conv.id}
               className={
@@ -206,11 +224,12 @@ function App() {
                 )}
               </div>
             </li>
-          ))}
-          {conversations.length === 0 && !loading && (
-            <li className="conversation-empty">No conversations yet. Create one to get started.</li>
-          )}
-        </ul>
+            ))}
+            {conversations.length === 0 && !loading && (
+              <li className="conversation-empty">No conversations yet. Create one to get started.</li>
+            )}
+          </ul>
+        )}
       </aside>
       <main className="canvas">
         <button

@@ -152,10 +152,11 @@ type DraftNode = {
 }
 
 function InnerConversationGraph({ graph, conversationId, onSendFromNode }: ConversationGraphProps) {
-  const { setCenter, fitView } = useReactFlow()
+  const { fitView } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState<QaNodeData>([])
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<DraftNode[]>([])
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const { updateNodePositions, fetchGraph } = useGraphStore()
   const [selectedAnchorNodeIds, setSelectedAnchorNodeIds] = useState<string[]>([])
   const [selectionMode, setSelectionMode] = useState<'none' | 'ask' | 'delete'>('none')
@@ -187,7 +188,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     [onSendFromNode],
   )
 
-  const { computedNodes, edges } = useMemo(() => {
+  const { computedNodes, edges, pairs } = useMemo(() => {
     const rawNodes = graph?.nodes ?? []
     const rawEdges = graph?.edges ?? []
 
@@ -221,6 +222,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         anchorNodeId,
       })
     }
+
+    // Ensure a stable chronological order for chat view.
+    pairs.sort((a, b) => a.userNode.created_at.localeCompare(b.userNode.created_at))
 
     // Build mapping from graph node id -> pair id (for edges between pairs)
     const pairIdByAnchorNodeId = new Map<string, string>()
@@ -373,7 +377,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       }
     }
 
-    return { computedNodes: reactFlowNodes, edges: reactFlowEdges }
+    return { computedNodes: reactFlowNodes, edges: reactFlowEdges, pairs }
   }, [
     graph,
     zoomedNodeId,
@@ -393,12 +397,33 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     })
   }, [computedNodes, setNodes])
 
+  useEffect(() => {
+    if (!expandedNodeId) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setExpandedNodeId(null)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expandedNodeId])
+
+  useEffect(() => {
+    if (!expandedNodeId) return
+    const el = document.getElementById(`expanded-pair-${expandedNodeId}`)
+    if (el && 'scrollIntoView' in el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }, [expandedNodeId])
+
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
-      setZoomedNodeId(node.id)
-      setCenter(node.position.x + 150, node.position.y + 80, { zoom: 1.4, duration: 200 })
+      setExpandedNodeId((current) => (current === node.id ? null : node.id))
     },
-    [setCenter],
+    [],
   )
 
   const onNodeClick = useCallback(
@@ -551,75 +576,154 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     }, 50)
   }, [fitView])
 
+  const expandedPair = expandedNodeId
+    ? pairs.find((p) => p.id === expandedNodeId)
+    : undefined
+  const isExpanded = !!expandedPair
+
   return (
     <div className="graph-shell">
-      <div
-        className="graph-flow"
-        style={{
-          cursor:
-            selectionMode === 'ask'
-              ? 'help'
-              : selectionMode === 'delete'
-              ? 'not-allowed'
-              : 'auto',
-        }}
-      >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          fitView
-          onInit={onInit}
-          onNodeClick={onNodeClick}
-          onNodeDoubleClick={onNodeDoubleClick}
-          onPaneClick={onPaneClick}
-          onNodeDragStop={onNodeDragStop}
-          onNodesChange={onNodesChange}
-          proOptions={{ hideAttribution: true }}
-          style={{ width: '100%', height: '100%' }}
+      {isExpanded && expandedPair ? (
+        <div
+          className="graph-expanded-chat"
+          onDoubleClick={() => setExpandedNodeId(null)}
         >
-          <Background gap={16} color="#e5e7eb" />
-          <Controls />
-        </ReactFlow>
-      </div>
-      <div className="graph-toolbar">
-        <button
-          type="button"
-          className="graph-toolbar-button"
-          onClick={handleCreateRootDraftWithCenter}
-        >
-          <span className="graph-toolbar-button-icon">+</span>
-          <span className="graph-toolbar-button-label">New starting node</span>
-        </button>
-        <button
-          type="button"
-          className={
-            selectionMode === 'ask'
-              ? 'graph-toolbar-button graph-toolbar-button--active'
-              : 'graph-toolbar-button'
-          }
-          onClick={handleToggleAskSelection}
-        >
-          <span className="graph-toolbar-button-icon">?</span>
-          <span className="graph-toolbar-button-label">
-            {selectionMode === 'ask' ? 'Confirm selection' : 'Ask about selection'}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={
-            selectionMode === 'delete'
-              ? 'graph-toolbar-button graph-toolbar-button--active'
-              : 'graph-toolbar-button'
-          }
-          onClick={handleToggleDeleteSelection}
-        >
-          <span className="graph-toolbar-button-icon">{selectionMode === 'delete' ? '✓' : '×'}</span>
-          <span className="graph-toolbar-button-label">
-            {selectionMode === 'delete' ? 'Confirm delete' : 'Delete node'}
-          </span>
-        </button>
-      </div>
+          <div className="graph-expanded-chat-header">
+            <button
+              type="button"
+              className="graph-expanded-close-button"
+              onClick={() => setExpandedNodeId(null)}
+            >
+              Close chat
+            </button>
+          </div>
+          <div className="graph-expanded-chat-body">
+            <div
+              key={expandedPair.id}
+              id={`expanded-pair-${expandedPair.id}`}
+              className="graph-expanded-chat-item"
+            >
+              <div className="qa-bubble qa-bubble--user">{expandedPair.userNode.label}</div>
+              {expandedPair.aiNode && (
+                <div className="qa-bubble qa-bubble--ai">
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }: any) => (
+                        <p style={{ margin: '0.25rem 0' }}>{children}</p>
+                      ),
+                      strong: ({ children }: any) => (
+                        <strong style={{ fontWeight: 700 }}>{children}</strong>
+                      ),
+                      em: ({ children }: any) => (
+                        <em style={{ fontStyle: 'italic' }}>{children}</em>
+                      ),
+                      code: ({ children }: any) => (
+                        <code
+                          style={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            padding: '0.1rem 0.3rem',
+                            borderRadius: '0.2rem',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {children}
+                        </code>
+                      ),
+                      ul: ({ children }: any) => (
+                        <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }: any) => (
+                        <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }: any) => (
+                        <li style={{ margin: '0.1rem 0' }}>{children}</li>
+                      ),
+                    }}
+                  >
+                    {expandedPair.aiNode.label}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div
+            className="graph-flow"
+            style={{
+              cursor:
+                selectionMode === 'ask'
+                  ? 'help'
+                  : selectionMode === 'delete'
+                  ? 'not-allowed'
+                  : 'auto',
+            }}
+          >
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              fitView
+              onInit={onInit}
+              onNodeClick={onNodeClick}
+              onNodeDoubleClick={onNodeDoubleClick}
+              onPaneClick={onPaneClick}
+              onNodeDragStop={onNodeDragStop}
+              onNodesChange={onNodesChange}
+              proOptions={{ hideAttribution: true }}
+              style={{ width: '100%', height: '100%' }}
+            >
+              <Background gap={16} color="#e5e7eb" />
+              <Controls />
+            </ReactFlow>
+          </div>
+          <div className="graph-toolbar">
+            <button
+              type="button"
+              className="graph-toolbar-button"
+              onClick={handleCreateRootDraftWithCenter}
+            >
+              <span className="graph-toolbar-button-icon">+</span>
+              <span className="graph-toolbar-button-label">New starting node</span>
+            </button>
+            <button
+              type="button"
+              className={
+                selectionMode === 'ask'
+                  ? 'graph-toolbar-button graph-toolbar-button--active'
+                  : 'graph-toolbar-button'
+              }
+              onClick={handleToggleAskSelection}
+            >
+              <span className="graph-toolbar-button-icon">?</span>
+              <span className="graph-toolbar-button-label">
+                {selectionMode === 'ask' ? 'Confirm selection' : 'Ask about selection'}
+              </span>
+            </button>
+            <button
+              type="button"
+              className={
+                selectionMode === 'delete'
+                  ? 'graph-toolbar-button graph-toolbar-button--active'
+                  : 'graph-toolbar-button'
+              }
+              onClick={handleToggleDeleteSelection}
+            >
+              <span className="graph-toolbar-button-icon">
+                {selectionMode === 'delete' ? '✓' : '×'}
+              </span>
+              <span className="graph-toolbar-button-label">
+                {selectionMode === 'delete' ? 'Confirm delete' : 'Delete node'}
+              </span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

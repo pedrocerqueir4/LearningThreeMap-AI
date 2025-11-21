@@ -16,7 +16,7 @@ import {
   createConversation,
   listConversations,
   getGraph,
-  createMessageWithDummyAI,
+  createMessageWithAI,
   deleteConversation,
   updateNodePositions,
   listMessagesForConversation,
@@ -24,6 +24,7 @@ import {
   deleteNodeSubtreeRespectingJoins,
   buildEchoFromAncestors,
   updateConversationTitle,
+  getConversationById,
 } from './db'
 
 type Bindings = { DB: D1Database; AI_API_KEY?: string }
@@ -145,7 +146,7 @@ app.post('/api/messages', async (c) => {
       }
     } catch (e) {
     }
-    const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho)
+    const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho)
     return c.json(result, 201)
   }
 
@@ -216,7 +217,51 @@ app.post('/api/messages', async (c) => {
     }
   }
 
-  const result = await createMessageWithDummyAI(c.env.DB, conversationId, content, fromNodeIds, aiContent)
+  const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiContent)
+  // Try to auto-generate a short conversation title (1–6 words) after the first AI answer,
+  // but only if the title is still the default placeholder.
+  try {
+    const conversation = await getConversationById(c.env.DB, conversationId)
+    if (conversation && (conversation.title.toUpperCase() === 'New conversation'.toUpperCase())) {
+      const titlePrompt =
+        'Generate a short, clear title (1 to 3 words) for this learning conversation. ' +
+        'Return only the title text without quotes.\n\n' +
+        `User question:\n${content}\n\n` +
+        `AI answer:\n${aiContent}`
+
+      const titleResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: titlePrompt }] }],
+          }),
+        },
+      )
+
+      if (titleResponse.ok) {
+        const titleData = (await titleResponse.json()) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[]
+        }
+        let generatedTitle =
+          titleData.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim() ?? ''
+
+        if (generatedTitle) {
+          generatedTitle = generatedTitle.replace(/\s+/g, ' ')
+          const words = generatedTitle.split(' ').filter(Boolean).slice(0, 3)
+          generatedTitle = words.join(' ')
+        } else {
+          generatedTitle = 'New conversation'
+        }
+
+        await updateConversationTitle(c.env.DB, conversationId, generatedTitle)
+      }
+    }
+  } catch (err) {
+    console.error('Failed to auto-generate conversation title:', err)
+  }
+
   return c.json(result, 201)
 })
 

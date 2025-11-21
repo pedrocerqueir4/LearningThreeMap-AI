@@ -57,6 +57,14 @@ export async function listConversations(db: D1Database): Promise<Conversation[]>
   return (res.results || []) as Conversation[]
 }
 
+export async function getConversationById(db: D1Database, conversationId: string): Promise<Conversation | null> {
+  const res = await db
+    .prepare("SELECT id, title, created_at FROM conversations WHERE id = ?")
+    .bind(conversationId)
+    .first<Conversation>()
+  return res || null
+}
+
 export async function updateConversationTitle(db: D1Database, conversationId: string, title: string): Promise<Conversation | null> {
   const res = await db
     .prepare("UPDATE conversations SET title = ? WHERE id = ? RETURNING id, title, created_at")
@@ -303,7 +311,7 @@ export async function deleteConversation(db: D1Database, conversationId: string)
   return changes > 0
 }
 
-export async function createMessageWithDummyAI(
+export async function createMessageWithAI(
   db: D1Database,
   conversationId: string,
   content: string,
