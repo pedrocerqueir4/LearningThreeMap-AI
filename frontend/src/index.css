@@ -6,6 +6,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 :root[data-theme='dark'] {
@@ -19,7 +20,7 @@ body {
   overflow: hidden;
   background-color: #f5f2ec;
   color: #111827;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 :root[data-theme='dark'] body {

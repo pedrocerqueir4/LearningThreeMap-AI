@@ -160,6 +160,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const { updateNodePositions, fetchGraph } = useGraphStore()
   const [selectedAnchorNodeIds, setSelectedAnchorNodeIds] = useState<string[]>([])
   const [selectionMode, setSelectionMode] = useState<'none' | 'ask' | 'delete'>('none')
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
   // Reset drafts when conversation changes
   useEffect(() => {
@@ -234,7 +235,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
     // Position nodes based on saved positions when available; otherwise fall back to a simple layout.
     const reactFlowNodes: Node<QaNodeData>[] = pairs.map((p, index) => {
-      const fallbackPosition = { x: 0, y: index * 220 }
+      const fallbackPosition = { x: 0, y: index * 240 }
       const anchorGraphNode = nodeById.get(p.anchorNodeId)
       const position =
         anchorGraphNode && anchorGraphNode.pos_x != null && anchorGraphNode.pos_y != null
@@ -267,14 +268,19 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
       Math.hypot(a.x - b.x, a.y - b.y)
 
-    const MIN_DISTANCE = 180
+    // Node dimensions: QA nodes are roughly 260px wide and 120-180px tall
+    // We need to account for this when checking collisions with draft nodes
+    const NODE_HEIGHT = 180
+    const MIN_DISTANCE = 280
+    // Prioritize positioning draft nodes below the parent node
     const OFFSETS: { x: number; y: number }[] = [
-      { x: 0, y: 220 },
-      { x: 260, y: 0 },
-      { x: -260, y: 0 },
-      { x: 260, y: 220 },
-      { x: -260, y: 220 },
-      { x: 0, y: -220 },
+      { x: 0, y: 220 },      // directly below
+      { x: 0, y: 440 },      // further below
+      { x: 260, y: 220 },    // below-right
+      { x: -260, y: 220 },   // below-left
+      { x: 260, y: 0 },      // right
+      { x: -260, y: 0 },     // left
+      { x: 0, y: -220 },     // above (last resort)
     ]
 
     const findFreePosition = (base: { x: number; y: number }) => {
@@ -287,8 +293,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         }
       }
 
-      // Fallback: push slightly further down from the base to avoid a perfect overlap.
-      const candidate = { x: base.x, y: base.y + 240 }
+      // Fallback: push further down to avoid overlap with node box
+      const candidate = { x: base.x, y: base.y + NODE_HEIGHT + 100 }
       occupiedPositions.push(candidate)
       return candidate
     }
@@ -413,9 +419,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   useEffect(() => {
     if (!expandedNodeId) return
-    const el = document.getElementById(`expanded-pair-${expandedNodeId}`)
-    if (el && 'scrollIntoView' in el) {
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const body = document.querySelector('.graph-expanded-chat-body')
+    if (body instanceof HTMLElement) {
+      body.scrollTop = 0
     }
   }, [expandedNodeId])
 
@@ -501,7 +507,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     setSelectedAnchorNodeIds([])
   }, [selectionMode, selectedAnchorNodeIds])
 
-  const handleToggleDeleteSelection = useCallback(async () => {
+  const handleToggleDeleteSelection = useCallback(() => {
     if (selectionMode !== 'delete') {
       setSelectionMode('delete')
       setSelectedAnchorNodeIds([])
@@ -513,10 +519,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       return
     }
 
-    const confirmed = window.confirm(
-      'Delete the selected node(s) and their downstream nodes? Nodes that also have other parents will be kept.',
-    )
-    if (!confirmed) {
+    setIsDeleteConfirmOpen(true)
+  }, [selectionMode, selectedAnchorNodeIds])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!selectedAnchorNodeIds.length) {
+      setIsDeleteConfirmOpen(false)
       setSelectionMode('none')
       return
     }
@@ -556,13 +564,23 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         }
       }
       await fetchGraph(conversationId)
-      setDrafts([])
+      // Only remove draft nodes that were selected for deletion
+      setDrafts((current) =>
+        current.filter((d) => !selectedAnchorNodeIds.includes(d.anchorNodeId ?? d.id)),
+      )
     } catch {
     }
 
+    setIsDeleteConfirmOpen(false)
     setSelectionMode('none')
     setSelectedAnchorNodeIds([])
-  }, [selectionMode, selectedAnchorNodeIds, conversationId, fetchGraph, graph])
+  }, [selectedAnchorNodeIds, conversationId, fetchGraph, graph])
+
+  const handleCancelDelete = useCallback(() => {
+    setIsDeleteConfirmOpen(false)
+    setSelectionMode('none')
+    setSelectedAnchorNodeIds([])
+  }, [])
 
   const handleCreateRootDraftWithCenter = useCallback(() => {
     const newDraftId = `draft-${Math.random().toString(36).slice(2)}`
@@ -677,6 +695,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               onNodesChange={onNodesChange}
               proOptions={{ hideAttribution: true }}
               style={{ width: '100%', height: '100%' }}
+              minZoom={0.07}
+              maxZoom={4}
             >
               <Background gap={16} color="#e5e7eb" />
               <Controls />
@@ -723,6 +743,33 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
             </button>
           </div>
         </>
+      )}
+      {isDeleteConfirmOpen && (
+        <div className="delete-modal-backdrop">
+          <div className="delete-modal" role="dialog" aria-modal="true">
+            <div className="delete-modal-title">Delete selected nodes?</div>
+            <div className="delete-modal-body">
+              This will delete the selected node(s) and their downstream nodes. Nodes that also have other parents will
+              be kept.
+            </div>
+            <div className="delete-modal-actions">
+              <button
+                type="button"
+                className="delete-modal-button delete-modal-button--secondary"
+                onClick={handleCancelDelete}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="delete-modal-button delete-modal-button--danger"
+                onClick={handleConfirmDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
