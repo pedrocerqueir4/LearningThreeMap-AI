@@ -4,76 +4,94 @@
 ### FR1 – Chat interface
 
 User can:
-- Type a message in an input box
+- Type a message in an input box inside the graph/chat view
 - Send message to backend
-- See AI response in a chat-like panel
+- See AI response rendered with basic Markdown support (bold, italic, code, lists)
 
-### FR2 – Conversation graph (roadmap)
+### FR2 – Conversation graph
 
-Every user message = a node
-Every AI response = a node
-Directed edges connect user message → AI response → next user message, etc.
-The graph layout is automatically handled by React Flow (simple layout for MVP).
+- Every user message = a graph node of type `user`.
+- Every AI response = a graph node of type `ai`.
+- The UI groups these as QA pairs in React Flow nodes (one visual node contains both user + AI text).
+- Directed edges connect user message → AI response → next user message, etc.
+- Nodes can be dragged; positions are saved and restored per conversation.
+- Users can create draft nodes (empty question boxes) anchored to existing nodes.
+- Users can delete subtrees of the graph while preserving joined nodes.
 
 Nodes show:
-Author (user or AI)
-Short preview of text
-Timestamp
+- Author (user or AI, via styling)
+- Short/complete text
+- Timestamp (in sidebar list via conversations)
 
 ### FR3 – Conversation persistence
 
 Conversations are saved in Cloudflare D1:
 - Conversation metadata (id, title, created_at)
 - Messages (content, author, timestamp)
-- Nodes and edges representing the graph
+- Nodes and edges representing the graph, including last-known positions
 
 When user reloads the page:
 - They can load a conversation and see both:
-- Chat history
-- Graph view
+- Chat history (implicit via graph)
+- Graph view (React Flow)
 
 ### FR4 – AI response via external API
 
 Backend receives:
-- Conversation id
-- Latest user message
+- conversationId
+- latest user message content
+- optional fromNodeIds (selection of nodes that define the context subgraph)
 
-Backend calls an AI API (e.g., OpenAI GPT) with:
-- The conversation context (may be truncated for MVP)
+Backend calls Google Gemini (Generative Language API) with:
+- A conversation history built from the ancestor nodes of `fromNodeIds` (if provided)
+- The latest user question
 
 Backend returns:
 - AI message text
+- Graph delta (new nodes and edges)
 
-Backend logs the message in D1 before responding.
+Backend logs the messages in D1 before responding.
+If no AI API key is configured, backend falls back to an echo mode.
 
-### FR5 – Basic conversation management
+### FR5 – Conversation management
 
 User can:
-- Start a new conversation (creates new record in D1)
-- Open an existing conversation (list + select)
-- Rename conversation (optional; can be skipped for very first version)
+- Start a new conversation (creates new record in D1; draft conversations are persisted on first message)
+- Open an existing conversation (list + select in sidebar)
+- Rename a conversation
+- Delete a conversation (with confirmation UI)
+
+### FR6 – Theme and UX polish
+
+- User can toggle between light and dark mode.
+- Theme preference is persisted across reloads.
+- Sidebar can be collapsed/expanded.
+- Loading indicators appear while sending messages / waiting for AI.
+- Errors are displayed in the UI when backend calls fail.
 
 ## Non-Functional Requirements
 ### NFR1 – Performance
 
-Single-user MVP: acceptable latency < a few seconds dominated by the AI API.
-Frontend should not freeze while rendering small graphs (tens/hundreds of nodes).
+- Single-user MVP: acceptable latency dominated by the AI API (< a few seconds).
+- Frontend should remain responsive while rendering graphs with tens/hundreds of nodes.
+- Node position updates should avoid excessive backend calls in future optimizations.
 
 ### NFR2 – Reliability
 
-If AI call fails, user sees a clear error and the app doesn’t crash.
-All DB operations are wrapped in try/catch with simple error messages.
+- If AI call fails, user sees a clear error and the app doesn’t crash.
+- Backend retries AI call once before failing.
+- All DB operations are wrapped in try/catch with simple error logging.
 
 ### NFR3 – Security (MVP level)
 
-API keys stored server-side only as environment variables on Cloudflare.
-No secrets in frontend bundle.
-CORS only allow your frontend origin (once deployed).
+- API keys stored server-side only as environment variables on Cloudflare (`AI_API_KEY`).
+- No secrets in frontend bundle.
+- CORS to allow only the deployed frontend origin in production.
 
 ### NFR4 – Maintainability
 
-Clear separation:
-- frontend/ (React + Vite)
-- backend/ (Cloudflare Worker + Hono)
-Simple, documented API endpoints.
-TypeScript used on both sides.
+- Clear separation:
+  - frontend/ (React + Vite + Zustand + React Flow)
+  - backend/ (Cloudflare Worker + Hono + D1)
+- Simple, documented API endpoints.
+- TypeScript used on both sides.

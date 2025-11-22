@@ -17,6 +17,8 @@ Routes grouped by responsibility:
 - /api/conversations – create, list, get details
 - /api/messages – create new message (and trigger AI call)
 - /api/graph – get graph for a conversation (nodes + edges)
+- /api/graph/:conversationId/positions – persist node positions when the user drags nodes
+- /api/graph/:conversationId/nodes/:nodeId – delete a node subtree, respecting join edges
 
 Integrations:
 - D1 binding for persistence
@@ -52,10 +54,12 @@ Basic relational schema:
 
 - id
 - conversation_id
-- message_id (nullable for non-message nodes, but MVP: always link to a message)
-- type (string: 'message')
-- label (short text for display, e.g. truncated content)
+- message_id (nullable for non-message nodes, current implementation links user/ai nodes to messages)
+- type (string: 'user' | 'ai')
+- label (short text for display, usually content or truncated content)
 - created_at
+- pos_x (nullable – last saved X position in the React Flow canvas)
+- pos_y (nullable – last saved Y position in the React Flow canvas)
 
 4. edges
 
@@ -63,7 +67,6 @@ Basic relational schema:
 - conversation_id
 - source_node_id 
 - target_node_id (can have multiple)
-- label (optional, e.g. “follow-up”)
 - created_at
 
 
@@ -83,9 +86,14 @@ Backend Worker: /api/...
 - GET /api/conversations
 - Response: [{ "id": string, "title": string, "created_at": string }]
 
-3. Get conversation details
-- GET /api/conversations/:id
-- Response: { "id", "title", "created_at", "updated_at" }
+3. Update conversation title
+- PUT /api/conversations/:conversationId
+- Body: { "title": string }
+- Response 200: updated conversation
+
+4. Delete conversation
+- DELETE /api/conversations/:conversationId
+- Response 204 on success
 
 ### 2. Messages & AI
 
@@ -94,25 +102,27 @@ Backend Worker: /api/...
 - Body:
   {
     "conversationId": "string",
-    "content": "user message text"
+    "content": "user message text",
+    "fromNodeIds": ["optional", "node", "ids"]
   }
 
 2. Backend steps:
 - Insert user message into messages.
-- Create node for user message and edge from previous node (if exists).
-- Build context (recent messages) for AI call.
-- Call AI API, get response.
+- Create user node and (optionally) edges from selected parent nodes (`fromNodeIds`).
+- Build context (recent messages from the ancestor nodes subgraph) for AI call if `fromNodeIds` are provided.
+- Call Google Gemini (Generative Language API) using API key from environment variable `AI_API_KEY`.
 - Insert AI message into messages.
-- Create node for AI message and an edge user_message_node → ai_message_node.
-- Response:
+- Create AI node and an edge user_node → ai_node.
+- Return:
   {
     "userMessage": { ... },
     "aiMessage": { ... },
     "graphDelta": {
       "newNodes": [...],
       "newEdges": [...]
+    }
   }
-}
+- Optionally, after the first AI answer of a new conversation, call Gemini again to auto-generate a short conversation title and persist it.
 
 ### 3. Graph
 
@@ -122,51 +132,66 @@ Backend Worker: /api/...
   {
     "nodes": [...],
     "edges": [...]
-}
+  }
 
 Nodes include ids, labels, type, author, etc.
 Edges include ids, source, target.
 
+2. Update node positions
+- POST /api/graph/:conversationId/positions
+- Body: { positions: [{ nodeId, x, y }, ...] }
+- Persists `pos_x` and `pos_y` in D1 for each node to keep the user-defined layout.
+
+3. Delete node subtree
+- DELETE /api/graph/:conversationId/nodes/:nodeId
+- Deletes a node and its descendants in the graph, but preserves nodes that are joined from multiple parents.
+
 ## Frontend Architecture
 ### 1. Screens & Layout
 
-Screen 1 – Conversation list
+Screen 1 – Conversation list (sidebar)
 
-- Show all conversations from /api/conversations.
-- “New conversation” button.
-- On click, navigate to conversation view.
+- Shows all conversations from /api/conversations.
+- "New conversation" button (reuses draft conversations if they exist).
+- Allows renaming and deleting conversations via a context menu.
+- Sidebar can be collapsed/expanded.
 
 Screen 2 – Conversation view
 
 - Layout:
-  - Left sidebar: conversation list (optional; or use a separate page).
-  - Main column: chat and map.
-- Chat area / Map area (React Flow)
-  - Shows messages inside of each Node.
-  - While waiting for AI response, show loading indicator.
-  - Nodes represent conversations, question made by user and answer made by AI.
-  - At bottom, a textarea/input for new message, making possible have diferent maps in the same conversation.
-  - Edges are directional, simple straight/curved lines.
-  - Controls: zoom, pan, fit-to-view.
+  - Left sidebar: conversation list (can be hidden).
+  - Main canvas: React Flow graph + inline chat controls.
+- Graph area (React Flow)
+  - Groups nodes into QA pairs: each visual node contains user question + AI answer.
+  - Nodes can be dragged; positions are saved via /api/graph/:id/positions.
+  - Supports creating draft nodes (empty question boxes) anchored to existing nodes.
+  - Edges are directional, rendered as smooth steps, with arrows.
+  - Controls: zoom, pan, fit-to-view, min/max zoom.
+  - Double-click on a node opens an expanded chat view.
+- Chat / Input
+  - User types the question directly inside the graph node component.
+  - Pressing Enter sends, Shift+Enter creates new lines.
+  - Loading indicators show when waiting for AI response.
 
 ### 2. State Management with Zustand
 
-Define logical state slices:
+Logical slices:
 1. Conversation slice
     - currentConversationId
     - conversations list
-    - Actions: setCurrentConversation, setConversations, addConversation.
+    - Actions: fetchConversations, createConversation, persistDraftConversation, touchConversation, deleteConversation, updateConversationTitle, setCurrentConversation.
 2. Messages slice
-    - messagesByConversationId
-    - Actions: setMessagesForConversation, appendMessages.
-3. Map slice
+    - sendMessage(conversationId, content, fromNodeIds?)
+3. Graph slice
     - graphByConversationId (nodes + edges)
-    - Actions: setGraph, applyGraphDelta.
-4. UI slice
-    - Loading flags: isSendingMessage, isLoadingGraph, etc.
-    - Error message strings.
+    - loadingByConversationId, errorByConversationId
+    - Actions: fetchGraph, setGraph, updateNodePositions, removeConversationGraph.
+4. Theme slice
+    - mode: 'light' | 'dark'
+    - setMode, persisted in localStorage and applied via CSS variables.
 
 ### 3. Backend Architecture (Worker + Hono)
+
 
 ### 1. Request Flow (Send message)
 
@@ -174,45 +199,45 @@ Define logical state slices:
 2. Validate payload (conversationId, content).
 3. Use D1 binding:
     - Insert user message into messages.
-    - Fetch last node for that conversation to connect edge.
-    - Insert node + edge.
+    - Create user and AI graph nodes.
+    - Connect edges from previous nodes based on `fromNodeIds`.
 4. Build AI API request:
-    - Fetch recent N messages for context from messages.
-    - Map them into the specific provider format (e.g. OpenAI messages array).
-    - fetch AI endpoint with API key from environment variable.
-5. On success:
+    - If `fromNodeIds` exist, load messages for the ancestor nodes subgraph.
+    - Map them into Gemini `contents` format (role: user/model, parts: text).
+5. Call Google Gemini with API key `AI_API_KEY`.
+6. On success:
     - Insert AI message into messages.
     - Insert AI node + edge.
-    - Return both messages and new nodes/edges.
-6. On failure:
-    - Return an error response; user message is still stored.
+    - Return both messages and graph delta.
+7. On failure:
+    - Try a second attempt.
+    - If it still fails, return a clear 500 error message to the frontend.
+8. If no `AI_API_KEY` is configured:
+    - Fallback to echo mode using `buildEchoFromAncestors` for context-aware echoes.
 
-### 2. DB Access Layer (simple, MVP)
+### 2. DB Access Layer (implemented)
 
-Define helper functions (no ORM needed yet):
+Helper functions (subset):
 1. getConversationById(id)
 2. createConversation(title)
-3. getMessages(conversationId, limit?)
-4. createMessage(conversationId, author, content)
-5. createNode(...)
-6. createEdge(...)
-7. getGraph(conversationId)
+3. listConversations()
+4. createMessageWithAI(conversationId, content, fromNodeIds?, aiOverrideContent?)
+5. getGraph(conversationId)
+6. updateNodePositions(conversationId, positions[])
+7. deleteConversation(conversationId)
+8. listMessagesForNodeAncestors(conversationId, fromNodeIds, limit)
+9. deleteNodeSubtreeRespectingJoins(conversationId, rootNodeId)
 
 ### 3. Security & Configuration (MVP)
 
-AI API key only available via Worker environment binding (e.g. OPENAI_API_KEY).
-Frontend never sees this key.
-CORS:
-- During development: allow localhost.
-- In production: allow only your Cloudflare Pages domain.
-
-Basic rate limiting is optional for MVP, but at least:
-- Limit message length client-side.
-- Add simple backend check for max length.
+- AI API key available via Worker environment binding `AI_API_KEY`.
+- Frontend never sees this key.
+- CORS to be configured in production (Cloudflare Worker + Pages origins).
+- Basic client-side validation of message length.
 
 ### 4. Development & Deployment Workflow
 
-### 1. Local Development
+## 1. Local Development
 
 Use npm.
 Monorepo:
@@ -223,7 +248,7 @@ Use:
 - ESLint + Prettier for consistent formatting.
 - Git + GitHub for version control.
 
-### 2. Deployment Plan
+## 2. Deployment Plan
 
 Frontend:
 - Build static assets with Vite.
