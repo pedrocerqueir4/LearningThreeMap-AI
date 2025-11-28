@@ -82,7 +82,7 @@
 
 ## Phase 9 - AI interaction
 
-- [ ] Define the AI agent (configure agent type via system prompt).
+- [X] Define the AI agent (configure agent type via system prompt).
 - [ ] Allow editing of the user’s submitted question.
 
 ## Phase 10 – Performance

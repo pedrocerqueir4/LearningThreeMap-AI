@@ -25,6 +25,7 @@ import {
   buildEchoFromAncestors,
   updateConversationTitle,
   getConversationById,
+  updateConversationSystemInstruction,
 } from './db'
 
 type Bindings = { DB: D1Database; AI_API_KEY?: string }
@@ -59,6 +60,23 @@ app.put('/api/conversations/:conversationId', async (c) => {
   }
 
   const updated = await updateConversationTitle(c.env.DB, conversationId, title)
+  if (!updated) {
+    return c.json({ error: 'Conversation not found' }, 404)
+  }
+
+  return c.json(updated)
+})
+
+app.put('/api/conversations/:conversationId/agent', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  if (!conversationId) {
+    return c.json({ error: 'conversationId is required' }, 400)
+  }
+
+  const body = await c.req.json().catch(() => ({})) as { systemInstruction?: string }
+  const systemInstruction = typeof body?.systemInstruction === 'string' ? body.systemInstruction.trim() : ''
+
+  const updated = await updateConversationSystemInstruction(c.env.DB, conversationId, systemInstruction)
   if (!updated) {
     return c.json({ error: 'Conversation not found' }, 404)
   }
@@ -166,7 +184,18 @@ app.post('/api/messages', async (c) => {
   }
 
   // Build Google Gemini contents from history and current user message
-  const systemInstruction = 'You are a helpful learning assistant. Answer concisely and clearly, focusing on the user question.'
+  let systemInstruction = 'You are a helpful learning assistant. Answer concisely and clearly, focusing on the user question.'
+
+  // Try to fetch custom system instruction for this conversation
+  try {
+    const conversation = await getConversationById(c.env.DB, conversationId)
+    if (conversation?.system_instruction) {
+      systemInstruction = conversation.system_instruction
+    }
+  } catch (err) {
+    console.error('Failed to fetch conversation system instruction:', err)
+  }
+
   const geminiContents = [
     ...history.map((m) => ({
       role: m.author === 'user' ? 'user' : 'model',
@@ -176,14 +205,12 @@ app.post('/api/messages', async (c) => {
   ] as { role: 'user' | 'model'; parts: { text: string }[] }[]
 
   const callAiOnce = async () => {
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        /*config: {
-          systemInstruction: systemInstruction,
-        },*/
+        systemInstruction: { parts: [{ text: systemInstruction }] },
         contents: geminiContents,
       }),
     })

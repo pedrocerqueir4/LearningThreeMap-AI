@@ -1,4 +1,4 @@
-export type Conversation = { id: string; title: string; created_at: string }
+export type Conversation = { id: string; title: string; created_at: string; system_instruction?: string }
 
 export async function buildEchoFromAncestors(
   db: D1Database,
@@ -52,14 +52,26 @@ export async function createConversation(db: D1Database, title: string): Promise
   return { id, title, created_at }
 }
 
+export async function updateConversationSystemInstruction(
+  db: D1Database,
+  conversationId: string,
+  systemInstruction: string,
+): Promise<Conversation | null> {
+  const res = await db
+    .prepare("UPDATE conversations SET system_instruction = ? WHERE id = ? RETURNING id, title, created_at, system_instruction")
+    .bind(systemInstruction, conversationId)
+    .first<Conversation>()
+  return res || null
+}
+
 export async function listConversations(db: D1Database): Promise<Conversation[]> {
-  const res = await db.prepare("SELECT id, title, created_at FROM conversations ORDER BY created_at DESC").all<Conversation>()
+  const res = await db.prepare("SELECT id, title, created_at, system_instruction FROM conversations ORDER BY created_at DESC").all<Conversation>()
   return (res.results || []) as Conversation[]
 }
 
 export async function getConversationById(db: D1Database, conversationId: string): Promise<Conversation | null> {
   const res = await db
-    .prepare("SELECT id, title, created_at FROM conversations WHERE id = ?")
+    .prepare("SELECT id, title, created_at, system_instruction FROM conversations WHERE id = ?")
     .bind(conversationId)
     .first<Conversation>()
   return res || null
@@ -67,7 +79,7 @@ export async function getConversationById(db: D1Database, conversationId: string
 
 export async function updateConversationTitle(db: D1Database, conversationId: string, title: string): Promise<Conversation | null> {
   const res = await db
-    .prepare("UPDATE conversations SET title = ? WHERE id = ? RETURNING id, title, created_at")
+    .prepare("UPDATE conversations SET title = ? WHERE id = ? RETURNING id, title, created_at, system_instruction")
     .bind(title, conversationId)
     .first<Conversation>()
   return res || null

@@ -418,6 +418,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -491,7 +492,7 @@
 }
 
 .qa-node-dot {
-  
+
   position: absolute;
   bottom: -5px;
   left: 50%;
@@ -530,7 +531,7 @@
   border: none;
 }
 
-.roadmap-graph > * {
+.roadmap-graph>* {
   flex: 1;
 }
 
@@ -603,6 +604,7 @@
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -798,6 +800,130 @@
 }
 
 :root[data-theme='dark'] .sidebar {
+  background-color: #18181b;
+  border-right: 1px solid #27272f;
+}
+
+:root[data-theme='dark'] .canvas {
+  background-color: #1f1f24;
+}
+
+:root[data-theme='dark'] .roadmaps-title {
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .roadmaps-underline {
+  background-color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .roadmap-node {
+  background-color: #27272f;
+  border-color: #3f3f46;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .roadmap-connector {
+  background-color: #3f3f46;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #fdfaf5;
+  color: #111827;
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid #e5e7eb;
+}
+
+:root[data-theme='dark'] .modal-content {
+  background-color: #1f1f24;
+  color: #e5e7eb;
+  border-color: #2e2e36;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.modal-body {
+  margin-bottom: 12px;
+}
+
+.modal-body p {
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.agent-instruction-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #fff;
+  color: inherit;
+  font-family: inherit;
+  resize: vertical;
+}
+
+:root[data-theme='dark'] .agent-instruction-input {
+  background-color: #27272f;
+  border-color: #3f3f46;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.secondary-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background-color: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+:root[data-theme='dark'] .secondary-button {
+  border-color: #3f3f46;
+}
+
+.secondary-button:hover {
   background-color: #18181b;
   border-right: 1px solid #27272f;
 }

@@ -6,6 +6,7 @@ export type Conversation = {
   title: string
   created_at: string
   isDraft?: boolean
+  system_instruction?: string
 }
 
 type ConversationState = {
@@ -19,10 +20,10 @@ type ConversationActions = {
   setCurrentConversation: (id: string | null) => void
   fetchConversations: () => Promise<void>
   createConversation: (title?: string) => Promise<void>
-  persistDraftConversation: (draftId: string) => Promise<Conversation | null>
   touchConversation: (id: string) => void
   deleteConversation: (conversationId: string) => Promise<void>
   updateConversationTitle: (conversationId: string, title: string) => Promise<void>
+  updateConversationSystemInstruction: (conversationId: string, instruction: string) => Promise<void>
 }
 
 export const useConversationStore = create<ConversationState & ConversationActions>((set, get) => ({
@@ -47,56 +48,24 @@ export const useConversationStore = create<ConversationState & ConversationActio
     }
   },
   createConversation: async (title) => {
-    const now = new Date().toISOString()
-    const draftId =
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? `draft-${crypto.randomUUID()}`
-        : `draft-${Math.random().toString(36).slice(2)}`
-
-    const draft: Conversation = {
-      id: draftId,
-      title: title ?? 'New conversation',
-      created_at: now,
-      isDraft: true,
-    }
-
-    set((state) => ({
-      conversations: [draft, ...state.conversations],
-      currentConversationId: draftId,
-      loading: false,
-      error: null,
-    }))
-  },
-  persistDraftConversation: async (draftId: string) => {
-    const state = get()
-    const draft = state.conversations.find((c) => c.id === draftId)
-    if (!draft || !draft.isDraft) {
-      return null
-    }
-
     set({ loading: true, error: null })
     try {
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: draft.title }),
+        body: JSON.stringify({ title: title ?? 'New conversation' }),
       })
       if (!res.ok) throw new Error('Failed to create conversation')
       const created = (await res.json()) as Conversation
 
-      set((current) => ({
-        conversations: current.conversations.map((c) =>
-          c.id === draftId ? { ...created, isDraft: false } : c,
-        ),
-        currentConversationId:
-          current.currentConversationId === draftId ? created.id : current.currentConversationId,
+      set((state) => ({
+        conversations: [created, ...state.conversations],
+        currentConversationId: created.id,
         loading: false,
+        error: null,
       }))
-
-      return { ...created, isDraft: false }
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : 'Unknown error' })
-      return null
     }
   },
   touchConversation: (id: string) => {
@@ -105,9 +74,9 @@ export const useConversationStore = create<ConversationState & ConversationActio
       conversations: state.conversations.map((c) =>
         c.id === id
           ? {
-              ...c,
-              created_at: now,
-            }
+            ...c,
+            created_at: now,
+          }
           : c,
       ),
     }))
@@ -144,6 +113,25 @@ export const useConversationStore = create<ConversationState & ConversationActio
         body: JSON.stringify({ title }),
       })
       if (!res.ok) throw new Error('Failed to update conversation title')
+      const updated = (await res.json()) as Conversation
+
+      set((state) => ({
+        conversations: state.conversations.map((c) => (c.id === conversationId ? updated : c)),
+        loading: false,
+      }))
+    } catch (err) {
+      set({ loading: false, error: err instanceof Error ? err.message : 'Unknown error' })
+    }
+  },
+  updateConversationSystemInstruction: async (conversationId: string, instruction: string) => {
+    set({ loading: true, error: null })
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/agent`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ systemInstruction: instruction }),
+      })
+      if (!res.ok) throw new Error('Failed to update conversation agent')
       const updated = (await res.json()) as Conversation
 
       set((state) => ({
