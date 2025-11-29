@@ -484,3 +484,123 @@ export async function createMessageWithAI(
 
   return { userMessage, aiMessage, graphDelta }
 }
+
+export async function editUserNodeContent(
+  db: D1Database,
+  conversationId: string,
+  nodeId: string,
+  newContent: string,
+): Promise<{ updatedNode: GraphNode }> {
+  // 1. Get the node to verify it exists and is a user node
+  const node = await db
+    .prepare('SELECT * FROM nodes WHERE conversation_id = ? AND id = ?')
+    .bind(conversationId, nodeId)
+    .first<GraphNode>()
+
+  if (!node || node.type !== 'user') {
+    throw new Error('Node not found or not a user node')
+  }
+
+  // 2. Update the message content
+  if (node.message_id) {
+    await db
+      .prepare('UPDATE messages SET content = ? WHERE id = ? AND conversation_id = ?')
+      .bind(newContent, node.message_id, conversationId)
+      .run()
+  }
+
+  // 3. Update the node label
+  await db
+    .prepare('UPDATE nodes SET label = ? WHERE id = ? AND conversation_id = ?')
+    .bind(newContent, nodeId, conversationId)
+    .run()
+
+  // 4. Find children (outgoing edges)
+  const edgesRes = await db
+    .prepare('SELECT target FROM edges WHERE conversation_id = ? AND source = ?')
+    .bind(conversationId, nodeId)
+    .all<{ target: string }>()
+  
+  const children = (edgesRes.results || []) as { target: string }[]
+
+  // 5. Delete children subtrees
+  for (const child of children) {
+    await deleteNodeSubtreeRespectingJoins(db, conversationId, child.target)
+  }
+
+  return { updatedNode: { ...node, label: newContent } }
+}
+
+export async function addAiResponseNode(
+  db: D1Database,
+  conversationId: string,
+  parentNodeId: string,
+  aiContent: string,
+): Promise<{ aiMessage: Message; aiNode: GraphNode; edge: GraphEdge }> {
+  const now = new Date().toISOString()
+
+  const aiMessage: Message = {
+    id: crypto.randomUUID(),
+    conversation_id: conversationId,
+    author: 'ai',
+    content: aiContent,
+    created_at: now,
+  }
+
+  await db
+    .prepare(
+      'INSERT INTO messages (id, conversation_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
+    )
+    .bind(
+      aiMessage.id,
+      aiMessage.conversation_id,
+      aiMessage.author,
+      aiMessage.content,
+      aiMessage.created_at,
+    )
+    .run()
+
+  const aiNode: GraphNode = {
+    id: crypto.randomUUID(),
+    conversation_id: conversationId,
+    message_id: aiMessage.id,
+    type: 'ai',
+    label: aiContent,
+    created_at: now,
+    pos_x: null,
+    pos_y: null,
+  }
+
+  await db
+    .prepare(
+      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at, pos_x, pos_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+    .bind(
+      aiNode.id,
+      aiNode.conversation_id,
+      aiNode.message_id,
+      aiNode.type,
+      aiNode.label,
+      aiNode.created_at,
+      aiNode.pos_x,
+      aiNode.pos_y,
+    )
+    .run()
+
+  const edge: GraphEdge = {
+    id: crypto.randomUUID(),
+    conversation_id: conversationId,
+    source: parentNodeId,
+    target: aiNode.id,
+    created_at: now,
+  }
+
+  await db
+    .prepare(
+      'INSERT INTO edges (id, conversation_id, source, target, created_at) VALUES (?, ?, ?, ?, ?)',
+    )
+    .bind(edge.id, edge.conversation_id, edge.source, edge.target, edge.created_at)
+    .run()
+
+  return { aiMessage, aiNode, edge }
+}

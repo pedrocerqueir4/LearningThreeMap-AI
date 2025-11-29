@@ -26,6 +26,8 @@ import {
   updateConversationTitle,
   getConversationById,
   updateConversationSystemInstruction,
+  editUserNodeContent,
+  addAiResponseNode,
 } from './db'
 
 type Bindings = { DB: D1Database; AI_API_KEY?: string }
@@ -290,6 +292,103 @@ app.post('/api/messages', async (c) => {
   }
 
   return c.json(result, 201)
+})
+
+app.put('/api/graph/:conversationId/nodes/:nodeId', async (c) => {
+  const conversationId = c.req.param('conversationId')
+  const nodeId = c.req.param('nodeId')
+  const body = await c.req.json().catch(() => ({})) as { content?: string }
+  const content = body.content?.trim()
+
+  if (!conversationId || !nodeId || !content) {
+    return c.json({ error: 'conversationId, nodeId, and content are required' }, 400)
+  }
+
+  // 1. Update user node and prune children
+  try {
+    await editUserNodeContent(c.env.DB, conversationId, nodeId, content)
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : 'Failed to update node' }, 400)
+  }
+
+  // 2. Load history for context (ancestors of the updated node)
+  // We include the updated node itself in the history
+  let history: Awaited<ReturnType<typeof listMessagesForConversation>> = []
+  try {
+    history = await listMessagesForNodeAncestors(c.env.DB, conversationId, [nodeId], 20)
+  } catch (err) {
+    console.error('Failed to load message history for AI:', err)
+  }
+
+  // 3. Prepare AI call
+  const apiKey = c.env.AI_API_KEY
+  if (!apiKey) {
+    // Echo fallback
+    const aiEcho = `Echo (Edited): ${content}`
+    const result = await addAiResponseNode(c.env.DB, conversationId, nodeId, aiEcho)
+    return c.json(result)
+  }
+
+  let systemInstruction = 'You are a helpful learning assistant. Answer concisely and clearly, focusing on the user question.'
+  try {
+    const conversation = await getConversationById(c.env.DB, conversationId)
+    if (conversation?.system_instruction) {
+      systemInstruction = conversation.system_instruction
+    }
+  } catch (err) {
+    console.error('Failed to fetch conversation system instruction:', err)
+  }
+
+  // The history includes the current message (the one we just edited) as the last user message
+  // So we don't need to append it manually like in POST /api/messages
+  const geminiContents = history.map((m) => ({
+    role: m.author === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }],
+  })) as { role: 'user' | 'model'; parts: { text: string }[] }[]
+
+  const callAiOnce = async () => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: geminiContents,
+      }),
+    })
+
+    if (!response.ok) {
+      const errBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
+      const msg = errBody?.error?.message ?? `AI request failed with status ${response.status}`
+      throw new Error(msg)
+    }
+
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[]
+    }
+    const aiText = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('').trim()
+    if (!aiText) {
+      throw new Error('AI returned an empty response')
+    }
+    return aiText
+  }
+
+  let aiContent: string
+  try {
+    aiContent = await callAiOnce()
+  } catch (firstError) {
+    console.error('AI call failed (first attempt):', firstError)
+    try {
+      aiContent = await callAiOnce()
+    } catch (secondError) {
+      console.error('AI call failed (second attempt):', secondError)
+      return c.json({ error: 'Failed to generate AI response. Please try again.' }, 500)
+    }
+  }
+
+  // 4. Create AI response node
+  const result = await addAiResponseNode(c.env.DB, conversationId, nodeId, aiContent)
+  return c.json(result)
 })
 
 app.delete('/api/graph/:conversationId/nodes/:nodeId', async (c) => {

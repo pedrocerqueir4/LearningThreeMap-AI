@@ -1005,3 +1005,109 @@
 :root[data-theme='dark'] .roadmap-empty {
   color: #6b7280;
 }
+
+/* Edit mode styles */
+.qa-bubble-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qa-node-edit-icon {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  transition: opacity 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.qa-node-body:hover .qa-node-edit-icon {
+  opacity: 1;
+}
+
+.qa-node-edit-icon:hover {
+  color: #4b5563;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.qa-node-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.qa-node-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.qa-node-edit-save,
+.qa-node-edit-cancel {
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.qa-node-edit-save {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+.qa-node-edit-save:hover:not(:disabled) {
+  background-color: #374151;
+}
+
+.qa-node-edit-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.qa-node-edit-cancel {
+  background-color: transparent;
+  color: #4b5563;
+  border-color: #d1d5db;
+}
+
+.qa-node-edit-cancel:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* Dark mode adjustments */
+:root[data-theme='dark'] .qa-node-edit-icon {
+  color: #6b7280;
+}
+
+:root[data-theme='dark'] .qa-node-edit-icon:hover {
+  color: #e5e7eb;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme='dark'] .qa-node-edit-save {
+  background-color: #e5e7eb;
+  color: #111827;
+}
+
+:root[data-theme='dark'] .qa-node-edit-save:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+:root[data-theme='dark'] .qa-node-edit-cancel {
+  color: #9ca3af;
+  border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .qa-node-edit-cancel:hover:not(:disabled) {
+  background-color: #27272f;
+  color: #e5e7eb;
+}

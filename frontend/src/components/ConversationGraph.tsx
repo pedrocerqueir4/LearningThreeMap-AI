@@ -31,6 +31,7 @@ type QaNodeData = {
   fromNodeIds: string[] | null
   onSend: (fromNodeIds: string[] | null, content: string, draftId: string) => Promise<void>
   onCreateDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
+  onEdit: (nodeId: string, newContent: string) => Promise<void>
   isZoomed: boolean
 }
 
@@ -38,6 +39,11 @@ const QaNode = ({ data }: NodeProps<QaNodeData>) => {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
 
   const isDraft = data.mode === 'draft'
 
@@ -51,14 +57,45 @@ const QaNode = ({ data }: NodeProps<QaNodeData>) => {
         data.fromNodeIds && data.fromNodeIds.length
           ? data.fromNodeIds
           : data.anchorNodeId
-          ? [data.anchorNodeId]
-          : []
+            ? [data.anchorNodeId]
+            : []
       await data.onSend(effectiveFromNodeIds.length ? effectiveFromNodeIds : null, text, data.id)
       setDraft('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
     } finally {
       setSending(false)
+    }
+  }
+
+  const startEditing = () => {
+    setEditContent(data.userText || '')
+    setIsEditing(true)
+    setError(null)
+  }
+
+  const cancelEditing = () => {
+    setIsEditing(false)
+    setEditContent('')
+    setError(null)
+  }
+
+  const saveEdit = async () => {
+    const text = editContent.trim()
+    if (!text || text === data.userText) {
+      cancelEditing()
+      return
+    }
+
+    setIsSavingEdit(true)
+    setError(null)
+    try {
+      await data.onEdit(data.id, text)
+      setIsEditing(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save edit')
+    } finally {
+      setIsSavingEdit(false)
     }
   }
 
@@ -106,8 +143,56 @@ const QaNode = ({ data }: NodeProps<QaNodeData>) => {
       ) : (
         <>
           <div className="qa-node-body">
-            {data.userText && <div className="qa-bubble qa-bubble--user">{data.userText}</div>}
-            {data.aiText && (
+            {isEditing ? (
+              <div className="qa-node-edit-container">
+                <input
+                  className="qa-node-input"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      saveEdit()
+                    } else if (e.key === 'Escape') {
+                      cancelEditing()
+                    }
+                  }}
+                  disabled={isSavingEdit}
+                  autoFocus
+                />
+                <div className="qa-node-edit-actions">
+                  <button
+                    className="qa-node-edit-cancel"
+                    onClick={cancelEditing}
+                    disabled={isSavingEdit}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="qa-node-edit-save"
+                    onClick={saveEdit}
+                    disabled={isSavingEdit || !editContent.trim()}
+                  >
+                    {isSavingEdit ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              data.userText && (
+                <div className="qa-bubble-row">
+                  <div className="qa-bubble qa-bubble--user">{data.userText}</div>
+                  <button
+                    className="qa-node-edit-icon"
+                    onClick={startEditing}
+                    title="Edit question"
+                  >
+                    ✎
+                  </button>
+                </div>
+              )
+            )}
+
+            {data.aiText && !isEditing && (
               <div className="qa-bubble qa-bubble--ai">
                 <ReactMarkdown
                   components={{
@@ -189,6 +274,24 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     [onSendFromNode],
   )
 
+  const handleEditNode = useCallback(
+    async (nodeId: string, newContent: string) => {
+      const res = await fetch(`/api/graph/${conversationId}/nodes/${encodeURIComponent(nodeId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error || 'Failed to edit node')
+      }
+
+      await fetchGraph(conversationId)
+    },
+    [conversationId, fetchGraph],
+  )
+
   const { computedNodes, edges, pairs } = useMemo(() => {
     const rawNodes = graph?.nodes ?? []
     const rawEdges = graph?.edges ?? []
@@ -255,6 +358,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           fromNodeIds: null,
           onSend: handleSendFromDraft,
           onCreateDraftBelow: handleCreateDraftBelow,
+          onEdit: handleEditNode,
           isZoomed: zoomedNodeId === p.id,
         },
         selected: selectedAnchorNodeIds.includes(p.anchorNodeId),
@@ -329,6 +433,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           fromNodeIds: draft.fromNodeIds,
           onSend: handleSendFromDraft,
           onCreateDraftBelow: handleCreateDraftBelow,
+          onEdit: handleEditNode,
           isZoomed: zoomedNodeId === draft.id,
         },
         selected: selectedAnchorNodeIds.includes(draft.anchorNodeId ?? draft.id),
@@ -364,8 +469,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         draft.fromNodeIds && draft.fromNodeIds.length
           ? draft.fromNodeIds
           : draft.anchorNodeId
-          ? [draft.anchorNodeId]
-          : []
+            ? [draft.anchorNodeId]
+            : []
 
       for (const anchorId of sourceAnchors) {
         const sourcePairId = pairIdByAnchorNodeId.get(anchorId)
@@ -391,6 +496,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     drafts,
     handleSendFromDraft,
     handleCreateDraftBelow,
+    handleEditNode,
     selectedAnchorNodeIds,
   ])
 
@@ -678,8 +784,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                 selectionMode === 'ask'
                   ? 'help'
                   : selectionMode === 'delete'
-                  ? 'not-allowed'
-                  : 'auto',
+                    ? 'not-allowed'
+                    : 'auto',
             }}
           >
             <ReactFlow
