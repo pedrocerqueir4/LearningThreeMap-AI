@@ -19,7 +19,7 @@ import { useGraphStore } from '../store/graph'
 export type ConversationGraphProps = {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null
   conversationId: string
-  onSendFromNode: (fromNodeIds: string[] | null, content: string) => Promise<void>
+  onSendFromNode: (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null) => Promise<void>
 }
 
 type QaNodeData = {
@@ -258,7 +258,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     setDrafts((current) => [
       ...current,
       {
-        id: `draft-${Math.random().toString(36).slice(2)}`,
+        id: crypto.randomUUID(),
         anchorNodeId: anchorNodeId ?? nodeId,
         fromNodeIds: [anchorNodeId ?? nodeId],
       },
@@ -268,7 +268,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const handleSendFromDraft = useCallback(
     async (fromNodeIds: string[] | null, content: string, draftId: string) => {
-      await onSendFromNode(fromNodeIds, content)
+      await onSendFromNode(fromNodeIds, content, draftId)
       setDrafts((current) => current.filter((d) => d.id !== draftId))
     },
     [onSendFromNode],

@@ -15,7 +15,7 @@ type MessageState = {
 type MessageActions = {
   setMessagesForConversation: (conversationId: string, messages: Message[]) => void
   appendMessages: (conversationId: string, messages: Message | Message[]) => void
-  sendMessage: (conversationId: string, content: string, fromNodeIds?: string[] | null) => Promise<void>
+  sendMessage: (conversationId: string, content: string, fromNodeIds?: string[] | null, draftNodeId?: string | null) => Promise<void>
 }
 
 export const useMessageStore = create<MessageState & MessageActions>((set, get) => ({
@@ -38,14 +38,19 @@ export const useMessageStore = create<MessageState & MessageActions>((set, get) 
       },
     }))
   },
-  sendMessage: async (conversationId, content, fromNodeIds) => {
+  sendMessage: async (conversationId, content, fromNodeIds, draftNodeId) => {
     const trimmed = content.trim()
     if (!trimmed) return
 
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversationId, content: trimmed, fromNodeIds: fromNodeIds ?? [] }),
+      body: JSON.stringify({
+        conversationId,
+        content: trimmed,
+        fromNodeIds: fromNodeIds ?? [],
+        draftNodeId: draftNodeId ?? null,
+      }),
     })
 
     if (!response.ok) {

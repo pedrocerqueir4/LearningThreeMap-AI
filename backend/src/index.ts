@@ -143,6 +143,7 @@ app.post('/api/messages', async (c) => {
     conversationId?: string
     content?: string
     fromNodeIds?: string[]
+    draftNodeId?: string | null
   }
 
   const conversationId = body.conversationId?.trim()
@@ -151,6 +152,7 @@ app.post('/api/messages', async (c) => {
   const fromNodeIds = rawFromNodeIds
     .map((id) => (typeof id === 'string' ? id.trim() : ''))
     .filter((id) => id.length > 0)
+  const draftNodeId = typeof body.draftNodeId === 'string' ? body.draftNodeId.trim() || null : null
 
   if (!conversationId || !content) {
     return c.json({ error: 'conversationId and content are required' }, 400)
@@ -166,7 +168,7 @@ app.post('/api/messages', async (c) => {
       }
     } catch (e) {
     }
-    const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho)
+    const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho, draftNodeId)
     return c.json(result, 201)
   }
 
@@ -246,7 +248,7 @@ app.post('/api/messages', async (c) => {
     }
   }
 
-  const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiContent)
+  const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiContent, draftNodeId)
   // Try to auto-generate a short conversation title (1–6 words) after the first AI answer,
   // but only if the title is still the default placeholder.
   try {
