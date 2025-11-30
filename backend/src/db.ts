@@ -329,7 +329,6 @@ export async function createMessageWithAI(
   content: string,
   fromNodeIds?: string[] | null,
   aiOverrideContent?: string | null,
-  draftNodeId?: string | null,
 ): Promise<{ userMessage: Message; aiMessage: Message; graphDelta: GraphDelta }> {
   const now = new Date().toISOString()
 
@@ -393,7 +392,7 @@ export async function createMessageWithAI(
   }
 
   const userNode: GraphNode = {
-    id: draftNodeId || crypto.randomUUID(),
+    id: crypto.randomUUID(),
     conversation_id: conversationId,
     message_id: userMessage.id,
     type: 'user',

@@ -700,18 +700,65 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     }, 50)
   }, [fitView])
 
+  useEffect(() => {
+    setChatEditingNodeId(null)
+    setChatEditContent('')
+    setChatEditError(null)
+  }, [expandedNodeId])
+
+  const [chatEditingNodeId, setChatEditingNodeId] = useState<string | null>(null)
+  const [chatEditContent, setChatEditContent] = useState('')
+  const [isChatSavingEdit, setIsChatSavingEdit] = useState(false)
+  const [chatEditError, setChatEditError] = useState<string | null>(null)
+
+  const startChatEditing = useCallback((nodeId: string, currentContent: string) => {
+    setChatEditingNodeId(nodeId)
+    setChatEditContent(currentContent)
+    setChatEditError(null)
+  }, [])
+
+  const cancelChatEditing = useCallback(() => {
+    setChatEditingNodeId(null)
+    setChatEditContent('')
+    setChatEditError(null)
+  }, [])
+
+  const saveChatEdit = useCallback(async () => {
+    if (!chatEditingNodeId) return
+
+    const text = chatEditContent.trim()
+    if (!text) {
+      cancelChatEditing()
+      return
+    }
+
+    setIsChatSavingEdit(true)
+    setChatEditError(null)
+
+    try {
+      await handleEditNode(chatEditingNodeId, text)
+      setChatEditingNodeId(null)
+    } catch (err) {
+      setChatEditError(err instanceof Error ? err.message : 'Failed to save edit')
+    } finally {
+      setIsChatSavingEdit(false)
+    }
+  }, [chatEditingNodeId, chatEditContent, handleEditNode, cancelChatEditing])
+
   const expandedPair = expandedNodeId
     ? pairs.find((p) => p.id === expandedNodeId)
     : undefined
-  const isExpanded = !!expandedPair
+
+  const expandedDraft = expandedNodeId
+    ? drafts.find((d) => d.id === expandedNodeId)
+    : undefined
+
+  const isExpanded = !!expandedPair || !!expandedDraft
 
   return (
     <div className="graph-shell">
-      {isExpanded && expandedPair ? (
-        <div
-          className="graph-expanded-chat"
-          onDoubleClick={() => setExpandedNodeId(null)}
-        >
+      {isExpanded ? (
+        <div className="graph-expanded-chat">
           <div className="graph-expanded-chat-header">
             <button
               type="button"
@@ -722,57 +769,152 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
             </button>
           </div>
           <div className="graph-expanded-chat-body">
-            <div
-              key={expandedPair.id}
-              id={`expanded-pair-${expandedPair.id}`}
-              className="graph-expanded-chat-item"
-            >
-              <div className="qa-bubble qa-bubble--user">{expandedPair.userNode.label}</div>
-              {expandedPair.aiNode && (
-                <div className="qa-bubble qa-bubble--ai">
-                  <ReactMarkdown
-                    components={{
-                      p: ({ children }: any) => (
-                        <p style={{ margin: '0.25rem 0' }}>{children}</p>
-                      ),
-                      strong: ({ children }: any) => (
-                        <strong style={{ fontWeight: 700 }}>{children}</strong>
-                      ),
-                      em: ({ children }: any) => (
-                        <em style={{ fontStyle: 'italic' }}>{children}</em>
-                      ),
-                      code: ({ children }: any) => (
-                        <code
-                          style={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                            padding: '0.1rem 0.3rem',
-                            borderRadius: '0.2rem',
-                            fontFamily: 'monospace',
+            {expandedPair && (
+              <div
+                key={expandedPair.id}
+                id={`expanded-pair-${expandedPair.id}`}
+                className="graph-expanded-chat-item"
+              >
+                {chatEditingNodeId === expandedPair.id ? (
+                  <div className="qa-node-edit-container">
+                    <input
+                      className="qa-node-input qa-node-input--chat-mode"
+                      value={chatEditContent}
+                      onChange={(e) => setChatEditContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          saveChatEdit()
+                        } else if (e.key === 'Escape') {
+                          cancelChatEditing()
+                        }
+                      }}
+                      disabled={isChatSavingEdit}
+                      autoFocus
+                      placeholder="Edit your message..."
+                    />
+                    <div className="qa-node-edit-actions">
+                      <button
+                        className="qa-node-edit-cancel"
+                        onClick={cancelChatEditing}
+                        disabled={isChatSavingEdit}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="qa-node-edit-save"
+                        onClick={saveChatEdit}
+                        disabled={isChatSavingEdit || !chatEditContent.trim()}
+                      >
+                        {isChatSavingEdit ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                    {chatEditError && <div className="qa-node-error">{chatEditError}</div>}
+                  </div>
+                ) : (
+                  <>
+                    <div className="qa-bubble-row">
+                      <div className="qa-bubble qa-bubble--user">{expandedPair.userNode.label}</div>
+                      <button
+                        className="qa-node-edit-icon"
+                        onClick={() => startChatEditing(expandedPair.id, expandedPair.userNode.label)}
+                        title="Edit message"
+                      >
+                        ✎
+                      </button>
+                    </div>
+                    {expandedPair.aiNode && (
+                      <div className="qa-bubble qa-bubble--ai">
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }: any) => (
+                              <p style={{ margin: '0.25rem 0' }}>{children}</p>
+                            ),
+                            strong: ({ children }: any) => (
+                              <strong style={{ fontWeight: 700 }}>{children}</strong>
+                            ),
+                            em: ({ children }: any) => (
+                              <em style={{ fontStyle: 'italic' }}>{children}</em>
+                            ),
+                            code: ({ children }: any) => (
+                              <code
+                                style={{
+                                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                                  padding: '0.1rem 0.3rem',
+                                  borderRadius: '0.2rem',
+                                  fontFamily: 'monospace',
+                                }}
+                              >
+                                {children}
+                              </code>
+                            ),
+                            ul: ({ children }: any) => (
+                              <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }: any) => (
+                              <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }: any) => (
+                              <li style={{ margin: '0.1rem 0' }}>{children}</li>
+                            ),
                           }}
                         >
-                          {children}
-                        </code>
-                      ),
-                      ul: ({ children }: any) => (
-                        <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
-                          {children}
-                        </ul>
-                      ),
-                      ol: ({ children }: any) => (
-                        <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
-                          {children}
-                        </ol>
-                      ),
-                      li: ({ children }: any) => (
-                        <li style={{ margin: '0.1rem 0' }}>{children}</li>
-                      ),
+                          {expandedPair.aiNode.label}
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {expandedDraft && (
+              <div className="graph-expanded-chat-item">
+                <div className="qa-node-input-only">
+                  <input
+                    className="qa-node-input qa-node-input--chat-mode"
+                    placeholder="Ask a question..."
+                    value={chatEditContent}
+                    onChange={(e) => setChatEditContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey && chatEditContent.trim()) {
+                        e.preventDefault()
+                        if (expandedDraft && chatEditContent.trim()) {
+                          setIsChatSavingEdit(true)
+                          handleSendFromDraft(expandedDraft.fromNodeIds, chatEditContent, expandedDraft.id)
+                            .catch(() => setChatEditError('Failed to send'))
+                            .finally(() => setIsChatSavingEdit(false))
+                        }
+                      }
                     }}
-                  >
-                    {expandedPair.aiNode.label}
-                  </ReactMarkdown>
+                    disabled={isChatSavingEdit}
+                    autoFocus
+                  />
+                  <div className="qa-node-edit-actions">
+                    <button
+                      className="qa-node-send-button"
+                      onClick={() => {
+                        if (expandedDraft && chatEditContent.trim()) {
+                          setIsChatSavingEdit(true)
+                          handleSendFromDraft(expandedDraft.fromNodeIds, chatEditContent, expandedDraft.id)
+                            .catch(() => setChatEditError('Failed to send'))
+                            .finally(() => setIsChatSavingEdit(false))
+                        }
+                      }}
+                      disabled={isChatSavingEdit || !chatEditContent.trim()}
+                      style={{ marginTop: '0.5rem' }}
+                    >
+                      {isChatSavingEdit ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
+                  {chatEditError && <div className="qa-node-error">{chatEditError}</div>}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

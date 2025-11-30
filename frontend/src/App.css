@@ -1111,3 +1111,24 @@
   background-color: #27272f;
   color: #e5e7eb;
 }
+
+/* Chat mode edit styles */
+.graph-expanded-chat-item .qa-bubble-row {
+  position: relative;
+}
+
+.graph-expanded-chat-item .qa-node-edit-icon {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.graph-expanded-chat-item:hover .qa-node-edit-icon {
+  opacity: 1;
+}
+
+.qa-node-input--chat-mode {
+  width: 100%;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.75rem;
+}
