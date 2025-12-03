@@ -755,6 +755,52 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const isExpanded = !!expandedPair || !!expandedDraft
 
+  // Navigation logic: find parent and child nodes for the expanded node
+  const getAdjacentNodes = useCallback(() => {
+    if (!expandedPair || !graph) return { parentPairs: [], childPairs: [] }
+
+    const rawEdges = graph.edges
+    const pairById = new Map<string, typeof pairs[0]>()
+    for (const p of pairs) {
+      pairById.set(p.id, p)
+    }
+
+    const pairIdByAnchorNodeId = new Map<string, string>()
+    for (const p of pairs) {
+      pairIdByAnchorNodeId.set(p.anchorNodeId, p.id)
+    }
+
+    // Find parent nodes: edges where target is the current node's user node
+    const parentPairs: typeof pairs = []
+    for (const edge of rawEdges) {
+      if (edge.target === expandedPair.userNode.id) {
+        const parentPairId = pairIdByAnchorNodeId.get(edge.source)
+        if (parentPairId) {
+          const parentPair = pairById.get(parentPairId)
+          if (parentPair && !parentPairs.some(p => p.id === parentPairId)) {
+            parentPairs.push(parentPair)
+          }
+        }
+      }
+    }
+
+    // Find child nodes: edges where source is the current node's anchor node
+    // The target of these edges is a user node ID, which is also the pair ID
+    const childPairs: typeof pairs = []
+    for (const edge of rawEdges) {
+      if (edge.source === expandedPair.anchorNodeId) {
+        const childPair = pairById.get(edge.target)
+        if (childPair && !childPairs.some(p => p.id === edge.target)) {
+          childPairs.push(childPair)
+        }
+      }
+    }
+
+    return { parentPairs, childPairs }
+  }, [expandedPair, graph, pairs])
+
+  const { parentPairs, childPairs } = getAdjacentNodes()
+
   return (
     <div className="graph-shell">
       {isExpanded ? (
@@ -769,6 +815,22 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
             </button>
           </div>
           <div className="graph-expanded-chat-body">
+            {/* Navigation dots for parent nodes (above) */}
+            {parentPairs.length > 0 && (
+              <div className="graph-nav-dots-container graph-nav-dots-container--top">
+                {parentPairs.map((pair) => (
+                  <button
+                    key={pair.id}
+                    type="button"
+                    className="graph-nav-dot"
+                    onClick={() => setExpandedNodeId(pair.id)}
+                    title={pair.userNode.label.length > 50 ? pair.userNode.label.substring(0, 50) + '...' : pair.userNode.label}
+                    aria-label={`Navigate to: ${pair.userNode.label.substring(0, 50)}`}
+                  />
+                ))}
+              </div>
+            )}
+
             {expandedPair && (
               <div
                 key={expandedPair.id}
@@ -913,6 +975,22 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                   </div>
                   {chatEditError && <div className="qa-node-error">{chatEditError}</div>}
                 </div>
+              </div>
+            )}
+
+            {/* Navigation dots for child nodes (below) */}
+            {childPairs.length > 0 && (
+              <div className="graph-nav-dots-container graph-nav-dots-container--bottom">
+                {childPairs.map((pair) => (
+                  <button
+                    key={pair.id}
+                    type="button"
+                    className="graph-nav-dot"
+                    onClick={() => setExpandedNodeId(pair.id)}
+                    title={pair.userNode.label.length > 50 ? pair.userNode.label.substring(0, 50) + '...' : pair.userNode.label}
+                    aria-label={`Navigate to: ${pair.userNode.label.substring(0, 50)}`}
+                  />
+                ))}
               </div>
             )}
           </div>

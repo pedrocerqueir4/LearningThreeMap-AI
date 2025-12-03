@@ -85,7 +85,7 @@
 - [X] Define the AI agent (configure agent type via system prompt).
 - [X] Allow editing of the user’s submitted question.
 - [X] Add chat mode edition and draft nodes in chat mode.
-- [ ] Move to next nodes in chat mode.
+- [X] Move to next nodes in chat mode.
 - [ ] Use part of the question to generate the AI response.
 
 ## Phase 10 – Performance

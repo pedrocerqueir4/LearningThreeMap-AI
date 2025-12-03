@@ -492,12 +492,9 @@
 }
 
 .qa-node-dot {
-
   position: absolute;
-  bottom: -5px;
   left: 50%;
   transform: translate(-50%, 50%);
-  margin: 0;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -508,8 +505,9 @@
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: bold;
   cursor: pointer;
+  padding: 0;
 }
 
 .qa-node-dot:active {
@@ -588,6 +586,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  animation: graph-chat-item-transition 0.3s ease-out;
 }
 
 .graph-expanded-chat-item .qa-bubble--user {
@@ -609,6 +608,67 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+@keyframes graph-chat-item-transition {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.graph-nav-dots-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+}
+
+.graph-nav-dots-container--top {
+  margin-bottom: 0.5rem;
+}
+
+.graph-nav-dots-container--bottom {
+  margin-top: 0.5rem;
+}
+
+.graph-nav-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background-color: #111827;
+  display: flex;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.graph-nav-dot:hover {
+  background-color: #1f2937;
+  transform: scale(1.2);
+}
+
+.graph-nav-dot:active {
+  transform: scale(1);
+}
+
+/* Dark mode support for navigation dots */
+:root[data-theme='dark'] .graph-nav-dot {
+  background-color: #3f3f46;
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .graph-nav-dot:hover {
+  background-color: #52525b;
 }
 
 .graph-toolbar {
