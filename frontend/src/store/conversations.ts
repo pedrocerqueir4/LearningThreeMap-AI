@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { useGraphStore } from './graph'
+import * as api from '../services/api'
 
 export type Conversation = {
   id: string
@@ -26,7 +27,7 @@ type ConversationActions = {
   updateConversationSystemInstruction: (conversationId: string, instruction: string) => Promise<void>
 }
 
-export const useConversationStore = create<ConversationState & ConversationActions>((set, get) => ({
+export const useConversationStore = create<ConversationState & ConversationActions>((set) => ({
   conversations: [],
   currentConversationId: null,
   loading: false,
@@ -35,9 +36,7 @@ export const useConversationStore = create<ConversationState & ConversationActio
   fetchConversations: async () => {
     set({ loading: true, error: null })
     try {
-      const res = await fetch('/api/conversations')
-      if (!res.ok) throw new Error('Failed to load conversations')
-      const data = (await res.json()) as Conversation[]
+      const data = await api.fetchConversations()
       set((state) => ({
         conversations: data,
         loading: false,
@@ -50,14 +49,7 @@ export const useConversationStore = create<ConversationState & ConversationActio
   createConversation: async (title) => {
     set({ loading: true, error: null })
     try {
-      const res = await fetch('/api/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title ?? 'New conversation' }),
-      })
-      if (!res.ok) throw new Error('Failed to create conversation')
-      const created = (await res.json()) as Conversation
-
+      const created = await api.createConversation(title)
       set((state) => ({
         conversations: [created, ...state.conversations],
         currentConversationId: created.id,
@@ -84,8 +76,7 @@ export const useConversationStore = create<ConversationState & ConversationActio
   deleteConversation: async (conversationId: string) => {
     set({ loading: true, error: null })
     try {
-      const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' })
-      if (!res.ok && res.status !== 204) throw new Error('Failed to delete conversation')
+      await api.deleteConversation(conversationId)
 
       const { removeConversationGraph } = useGraphStore.getState()
       removeConversationGraph(conversationId)
@@ -107,14 +98,7 @@ export const useConversationStore = create<ConversationState & ConversationActio
   updateConversationTitle: async (conversationId: string, title: string) => {
     set({ loading: true, error: null })
     try {
-      const res = await fetch(`/api/conversations/${conversationId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      })
-      if (!res.ok) throw new Error('Failed to update conversation title')
-      const updated = (await res.json()) as Conversation
-
+      const updated = await api.updateConversationTitle(conversationId, title)
       set((state) => ({
         conversations: state.conversations.map((c) => (c.id === conversationId ? updated : c)),
         loading: false,
@@ -126,14 +110,7 @@ export const useConversationStore = create<ConversationState & ConversationActio
   updateConversationSystemInstruction: async (conversationId: string, instruction: string) => {
     set({ loading: true, error: null })
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/agent`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ systemInstruction: instruction }),
-      })
-      if (!res.ok) throw new Error('Failed to update conversation agent')
-      const updated = (await res.json()) as Conversation
-
+      const updated = await api.updateConversationSystemInstruction(conversationId, instruction)
       set((state) => ({
         conversations: state.conversations.map((c) => (c.id === conversationId ? updated : c)),
         loading: false,

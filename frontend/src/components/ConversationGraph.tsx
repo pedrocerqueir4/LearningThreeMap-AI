@@ -6,15 +6,22 @@ import ReactFlow, {
   ReactFlowProvider,
   useNodesState,
   useReactFlow,
-  Handle,
-  Position,
 } from 'reactflow'
-import type { Edge, Node, NodeProps } from 'reactflow'
+import type { Edge, Node } from 'reactflow'
 import 'reactflow/dist/style.css'
 import ReactMarkdown from 'react-markdown'
 
 import type { GraphEdge, GraphNode } from '../store/graph'
+import type { QaNodeData } from '../types'
 import { useGraphStore } from '../store/graph'
+import { QaNode } from './QaNode'
+import { useDraftNodes } from '../hooks/useDraftNodes'
+import { useSelectionMode } from '../hooks/useSelectionMode'
+import { useEditMode } from '../hooks/useEditMode'
+import { markdownComponents } from '../utils/markdown'
+import { findFreePosition } from '../utils/position'
+import { EDGE_STYLE, EDGE_MARKER, REACT_FLOW_CONFIG } from '../constants/graph'
+import * as api from '../services/api'
 
 export type ConversationGraphProps = {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null
@@ -22,274 +29,42 @@ export type ConversationGraphProps = {
   onSendFromNode: (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null) => Promise<void>
 }
 
-type QaNodeData = {
-  id: string
-  mode: 'draft' | 'complete'
-  userText: string | null
-  aiText: string | null
-  anchorNodeId: string | null
-  fromNodeIds: string[] | null
-  onSend: (fromNodeIds: string[] | null, content: string, draftId: string) => Promise<void>
-  onCreateDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
-  onEdit: (nodeId: string, newContent: string) => Promise<void>
-  isZoomed: boolean
-}
-
-const QaNode = ({ data }: NodeProps<QaNodeData>) => {
-  const [draft, setDraft] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Edit mode state
-  const [isEditing, setIsEditing] = useState(false)
-  const [editContent, setEditContent] = useState('')
-  const [isSavingEdit, setIsSavingEdit] = useState(false)
-
-  const isDraft = data.mode === 'draft'
-
-  const handleSend = async () => {
-    const text = draft.trim()
-    if (!isDraft || !text || sending) return
-    setSending(true)
-    setError(null)
-    try {
-      const effectiveFromNodeIds =
-        data.fromNodeIds && data.fromNodeIds.length
-          ? data.fromNodeIds
-          : data.anchorNodeId
-            ? [data.anchorNodeId]
-            : []
-      await data.onSend(effectiveFromNodeIds.length ? effectiveFromNodeIds : null, text, data.id)
-      setDraft('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const startEditing = () => {
-    setEditContent(data.userText || '')
-    setIsEditing(true)
-    setError(null)
-  }
-
-  const cancelEditing = () => {
-    setIsEditing(false)
-    setEditContent('')
-    setError(null)
-  }
-
-  const saveEdit = async () => {
-    const text = editContent.trim()
-    if (!text || text === data.userText) {
-      cancelEditing()
-      return
-    }
-
-    setIsSavingEdit(true)
-    setError(null)
-    try {
-      await data.onEdit(data.id, text)
-      setIsEditing(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save edit')
-    } finally {
-      setIsSavingEdit(false)
-    }
-  }
-
-  return (
-    <div className={data.isZoomed ? 'qa-node qa-node--zoomed' : 'qa-node'}>
-      <Handle type="target" position={Position.Top} className="qa-node-handle" />
-      <Handle type="source" position={Position.Bottom} className="qa-node-handle" />
-      {isDraft ? (
-        <>
-          {error && <div className="qa-node-error">{error}</div>}
-          <div className="qa-node-input-only">
-            <input
-              className="qa-node-input qa-node-input--single"
-              placeholder="Ask a question..."
-              value={draft}
-              onChange={(e) => setDraft(e.target.value.slice(0, 500))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && draft.trim()) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              disabled={sending}
-              maxLength={500}
-            />
-            <button
-              className="qa-node-send-button"
-              onClick={handleSend}
-              disabled={sending || !draft.trim()}
-              type="button"
-              title={sending ? 'Sending...' : 'Send message'}
-            >
-              {sending ? (
-                <>
-                  <span className="qa-node-send-spinner">⟳</span> Sending...
-                </>
-              ) : (
-                <>
-                  <span className="qa-node-send-plus">+</span> Send
-                </>
-              )}
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="qa-node-body">
-            {isEditing ? (
-              <div className="qa-node-edit-container">
-                <input
-                  className="qa-node-input"
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      saveEdit()
-                    } else if (e.key === 'Escape') {
-                      cancelEditing()
-                    }
-                  }}
-                  disabled={isSavingEdit}
-                  autoFocus
-                />
-                <div className="qa-node-edit-actions">
-                  <button
-                    className="qa-node-edit-cancel"
-                    onClick={cancelEditing}
-                    disabled={isSavingEdit}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="qa-node-edit-save"
-                    onClick={saveEdit}
-                    disabled={isSavingEdit || !editContent.trim()}
-                  >
-                    {isSavingEdit ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              data.userText && (
-                <div className="qa-bubble-row">
-                  <div className="qa-bubble qa-bubble--user">{data.userText}</div>
-                  <button
-                    className="qa-node-edit-icon"
-                    onClick={startEditing}
-                    title="Edit question"
-                  >
-                    ✎
-                  </button>
-                </div>
-              )
-            )}
-
-            {data.aiText && !isEditing && (
-              <div className="qa-bubble qa-bubble--ai">
-                <ReactMarkdown
-                  components={{
-                    p: ({ children }: any) => <p style={{ margin: '0.25rem 0' }}>{children}</p>,
-                    strong: ({ children }: any) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
-                    em: ({ children }: any) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
-                    code: ({ children }: any) => (
-                      <code style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', padding: '0.1rem 0.3rem', borderRadius: '0.2rem', fontFamily: 'monospace' }}>
-                        {children}
-                      </code>
-                    ),
-                    ul: ({ children }: any) => <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>{children}</ul>,
-                    ol: ({ children }: any) => <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>{children}</ol>,
-                    li: ({ children }: any) => <li style={{ margin: '0.1rem 0' }}>{children}</li>,
-                  }}
-                >
-                  {data.aiText}
-                </ReactMarkdown>
-              </div>
-            )}
-          </div>
-          {error && <div className="qa-node-error">{error}</div>}
-          <button
-            type="button"
-            className="qa-node-dot"
-            onClick={() => data.onCreateDraftBelow(data.id, data.anchorNodeId ?? null)}
-          >
-            +
-          </button>
-        </>
-      )}
-    </div>
-  )
-}
-
 const nodeTypes = { qa: QaNode }
 
-type DraftNode = {
+type Pair = {
   id: string
-  anchorNodeId: string | null
-  fromNodeIds: string[]
+  userNode: GraphNode
+  aiNode: GraphNode | null
+  anchorNodeId: string
 }
 
 function InnerConversationGraph({ graph, conversationId, onSendFromNode }: ConversationGraphProps) {
   const { fitView } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState<QaNodeData>([])
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
-  const [drafts, setDrafts] = useState<DraftNode[]>([])
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
-  const { updateNodePositions, fetchGraph } = useGraphStore()
-  const [selectedAnchorNodeIds, setSelectedAnchorNodeIds] = useState<string[]>([])
-  const [selectionMode, setSelectionMode] = useState<'none' | 'ask' | 'delete'>('none')
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
-  // Reset drafts when conversation changes
-  useEffect(() => {
-    setDrafts([])
-    setSelectedAnchorNodeIds([])
-    setSelectionMode('none')
-  }, [conversationId])
-
-  const handleCreateDraftBelow = useCallback((nodeId: string, anchorNodeId: string | null) => {
-    setDrafts((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        anchorNodeId: anchorNodeId ?? nodeId,
-        fromNodeIds: [anchorNodeId ?? nodeId],
-      },
-    ])
-  }, [])
-
+  const { updateNodePositions, fetchGraph } = useGraphStore()
+  const { drafts, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
+  const { selectionMode, selectedAnchorNodeIds, setSelectionMode, toggleNodeSelection, clearSelection } =
+    useSelectionMode(conversationId)
+  const chatEdit = useEditMode()
 
   const handleSendFromDraft = useCallback(
     async (fromNodeIds: string[] | null, content: string, draftId: string) => {
       await onSendFromNode(fromNodeIds, content, draftId)
-      setDrafts((current) => current.filter((d) => d.id !== draftId))
+      removeDraft(draftId)
     },
-    [onSendFromNode],
+    [onSendFromNode, removeDraft]
   )
 
   const handleEditNode = useCallback(
     async (nodeId: string, newContent: string) => {
-      const res = await fetch(`/api/graph/${conversationId}/nodes/${encodeURIComponent(nodeId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent }),
-      })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string }
-        throw new Error(err.error || 'Failed to edit node')
-      }
-
+      await api.updateNode(conversationId, nodeId, newContent)
       await fetchGraph(conversationId)
     },
-    [conversationId, fetchGraph],
+    [conversationId, fetchGraph]
   )
 
   const { computedNodes, edges, pairs } = useMemo(() => {
@@ -300,13 +75,6 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     for (const n of rawNodes) nodeById.set(n.id, n)
 
     // Group user + ai nodes into QA pairs
-    type Pair = {
-      id: string
-      userNode: GraphNode
-      aiNode: GraphNode | null
-      anchorNodeId: string
-    }
-
     const pairs: Pair[] = []
 
     for (const n of rawNodes) {
@@ -327,7 +95,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       })
     }
 
-    // Ensure a stable chronological order for chat view.
+    // Ensure a stable chronological order for chat view
     pairs.sort((a, b) => a.userNode.created_at.localeCompare(b.userNode.created_at))
 
     // Build mapping from graph node id -> pair id (for edges between pairs)
@@ -336,7 +104,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       pairIdByAnchorNodeId.set(p.anchorNodeId, p.id)
     }
 
-    // Position nodes based on saved positions when available; otherwise fall back to a simple layout.
+    // Position nodes based on saved positions when available; otherwise fall back to simple layout
     const reactFlowNodes: Node<QaNodeData>[] = pairs.map((p, index) => {
       const fallbackPosition = { x: 0, y: index * 240 }
       const anchorGraphNode = nodeById.get(p.anchorNodeId)
@@ -357,7 +125,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           anchorNodeId: p.anchorNodeId,
           fromNodeIds: null,
           onSend: handleSendFromDraft,
-          onCreateDraftBelow: handleCreateDraftBelow,
+          onCreateDraftBelow: createDraftBelow,
           onEdit: handleEditNode,
           isZoomed: zoomedNodeId === p.id,
         },
@@ -365,47 +133,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       }
     })
 
-    // Track occupied positions so we can place new draft nodes near their parent
-    // without heavily overlapping existing nodes.
+    // Track occupied positions for collision detection
     const occupiedPositions: { x: number; y: number }[] = reactFlowNodes.map((n) => n.position)
-
-    const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
-      Math.hypot(a.x - b.x, a.y - b.y)
-
-    // Node dimensions: QA nodes are roughly 260px wide and 120-180px tall
-    // We need to account for this when checking collisions with draft nodes
-    const NODE_HEIGHT = 180
-    const MIN_DISTANCE = 280
-    // Prioritize positioning draft nodes below the parent node
-    const OFFSETS: { x: number; y: number }[] = [
-      { x: 0, y: 220 },      // directly below
-      { x: 0, y: 440 },      // further below
-      { x: 260, y: 220 },    // below-right
-      { x: -260, y: 220 },   // below-left
-      { x: 260, y: 0 },      // right
-      { x: -260, y: 0 },     // left
-      { x: 0, y: -220 },     // above (last resort)
-    ]
-
-    const findFreePosition = (base: { x: number; y: number }) => {
-      for (const offset of OFFSETS) {
-        const candidate = { x: base.x + offset.x, y: base.y + offset.y }
-        const collides = occupiedPositions.some((p) => distance(p, candidate) < MIN_DISTANCE)
-        if (!collides) {
-          occupiedPositions.push(candidate)
-          return candidate
-        }
-      }
-
-      // Fallback: push further down to avoid overlap with node box
-      const candidate = { x: base.x, y: base.y + NODE_HEIGHT + 100 }
-      occupiedPositions.push(candidate)
-      return candidate
-    }
 
     // Add local draft nodes (empty question boxes)
     const draftNodes: Node<QaNodeData>[] = drafts.map((draft, index) => {
-      // Default stacking for root drafts (created from the bottom toolbar).
+      // Default stacking for root drafts (created from the bottom toolbar)
       let base = { x: 0, y: (pairs.length + index) * 220 }
 
       if (draft.anchorNodeId) {
@@ -418,7 +151,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         }
       }
 
-      const position = findFreePosition(base)
+      const position = findFreePosition(base, occupiedPositions)
+      occupiedPositions.push(position)
 
       return {
         id: draft.id,
@@ -432,7 +166,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           anchorNodeId: draft.anchorNodeId,
           fromNodeIds: draft.fromNodeIds,
           onSend: handleSendFromDraft,
-          onCreateDraftBelow: handleCreateDraftBelow,
+          onCreateDraftBelow: createDraftBelow,
           onEdit: handleEditNode,
           isZoomed: zoomedNodeId === draft.id,
         },
@@ -457,13 +191,13 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         source: sourcePairId,
         target: targetPair.id,
         type: 'smoothstep',
-        markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#111827' },
-        style: { stroke: '#111827', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, ...EDGE_MARKER },
+        style: EDGE_STYLE,
         animated: false,
       })
     }
 
-    // Local edges from parent QA pair to draft nodes, so new nodes are connected visually
+    // Local edges from parent QA pair to draft nodes
     for (const draft of drafts) {
       const sourceAnchors =
         draft.fromNodeIds && draft.fromNodeIds.length
@@ -481,8 +215,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           source: sourcePairId,
           target: draft.id,
           type: 'smoothstep',
-          markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: '#111827' },
-          style: { stroke: '#111827', strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, ...EDGE_MARKER },
+          style: EDGE_STYLE,
           animated: false,
         })
       }
@@ -492,10 +226,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   }, [
     graph,
     zoomedNodeId,
-    conversationId,
     drafts,
     handleSendFromDraft,
-    handleCreateDraftBelow,
+    createDraftBelow,
     handleEditNode,
     selectedAnchorNodeIds,
   ])
@@ -531,36 +264,32 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     }
   }, [expandedNodeId])
 
+  // Reset edit state when expanding/collapsing
+  useEffect(() => {
+    chatEdit.setEditContent('')
+    chatEdit.setError(null)
+  }, [expandedNodeId])
+
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
       setExpandedNodeId((current) => (current === node.id ? null : node.id))
     },
-    [],
+    []
   )
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
       const anchor = node.data.anchorNodeId ?? node.id
-      setSelectedAnchorNodeIds((current) => {
-        if (selectionMode === 'none') {
-          return current.includes(anchor) ? [] : [anchor]
-        }
-        const exists = current.includes(anchor)
-        if (exists) {
-          return current.filter((id) => id !== anchor)
-        }
-        return [...current, anchor]
-      })
+      toggleNodeSelection(anchor)
     },
-    [selectionMode],
+    [toggleNodeSelection]
   )
 
   const onPaneClick = useCallback(() => {
     setZoomedNodeId(null)
-    setSelectedAnchorNodeIds([])
-    setSelectionMode('none')
-    fitView({ padding: 0.2, duration: 200 })
-  }, [fitView])
+    clearSelection()
+    fitView({ padding: REACT_FLOW_CONFIG.fitViewPadding, duration: 200 })
+  }, [fitView, clearSelection])
 
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
@@ -576,20 +305,18 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         },
       ])
     },
-    [conversationId, updateNodePositions],
+    [conversationId, updateNodePositions]
   )
 
-  // Ensure initial fit
   const onInit = useCallback(() => {
     if (computedNodes.length > 0) {
-      fitView({ padding: 0.2 })
+      fitView({ padding: REACT_FLOW_CONFIG.fitViewPadding })
     }
   }, [fitView, computedNodes.length])
 
   const handleToggleAskSelection = useCallback(() => {
     if (selectionMode !== 'ask') {
       setSelectionMode('ask')
-      setSelectedAnchorNodeIds([])
       return
     }
 
@@ -598,25 +325,20 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       return
     }
 
-    setDrafts((current) => {
-      const anchorNodeId = selectedAnchorNodeIds[0] ?? null
-      const fromNodeIds = [...selectedAnchorNodeIds]
-      const newDraft = {
-        id: `draft-${Math.random().toString(36).slice(2)}`,
-        anchorNodeId,
-        fromNodeIds,
-      }
-      return [...current, newDraft]
-    })
-
-    setSelectionMode('none')
-    setSelectedAnchorNodeIds([])
-  }, [selectionMode, selectedAnchorNodeIds])
+    const anchorNodeId = selectedAnchorNodeIds[0] ?? null
+    const fromNodeIds = [...selectedAnchorNodeIds]
+    const newDraft = {
+      id: `draft-${Math.random().toString(36).slice(2)}`,
+      anchorNodeId,
+      fromNodeIds,
+    }
+    createDraftBelow(newDraft.anchorNodeId ?? '', newDraft.anchorNodeId)
+    clearSelection()
+  }, [selectionMode, selectedAnchorNodeIds, setSelectionMode, createDraftBelow, clearSelection])
 
   const handleToggleDeleteSelection = useCallback(() => {
     if (selectionMode !== 'delete') {
       setSelectionMode('delete')
-      setSelectedAnchorNodeIds([])
       return
     }
 
@@ -626,7 +348,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     }
 
     setIsDeleteConfirmOpen(true)
-  }, [selectionMode, selectedAnchorNodeIds])
+  }, [selectionMode, selectedAnchorNodeIds, setSelectionMode])
 
   const handleConfirmDelete = useCallback(async () => {
     if (!selectedAnchorNodeIds.length) {
@@ -659,103 +381,36 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       const rootIds = Array.from(new Set(selectedAnchorNodeIds.map(resolveRootId)))
 
       for (const nodeId of rootIds) {
-        const res = await fetch(
-          `/api/graph/${conversationId}/nodes/${encodeURIComponent(nodeId)}`,
-          {
-            method: 'DELETE',
-          },
-        )
-        if (!res.ok) {
-          continue
-        }
+        await api.deleteNode(conversationId, nodeId)
       }
+
       await fetchGraph(conversationId)
-      // Only remove draft nodes that were selected for deletion
-      setDrafts((current) =>
-        current.filter((d) => !selectedAnchorNodeIds.includes(d.anchorNodeId ?? d.id)),
-      )
+      removeDraftsByAnchorIds(selectedAnchorNodeIds)
     } catch {
+      // Error handling could be improved here
     }
 
     setIsDeleteConfirmOpen(false)
-    setSelectionMode('none')
-    setSelectedAnchorNodeIds([])
-  }, [selectedAnchorNodeIds, conversationId, fetchGraph, graph])
+    clearSelection()
+  }, [selectedAnchorNodeIds, conversationId, fetchGraph, graph, clearSelection, removeDraftsByAnchorIds])
 
   const handleCancelDelete = useCallback(() => {
     setIsDeleteConfirmOpen(false)
-    setSelectionMode('none')
-    setSelectedAnchorNodeIds([])
-  }, [])
+    clearSelection()
+  }, [clearSelection])
 
-  const handleCreateRootDraftWithCenter = useCallback(() => {
-    const newDraftId = `draft-${Math.random().toString(36).slice(2)}`
-    setDrafts((current) => [
-      ...current,
-      { id: newDraftId, anchorNodeId: null, fromNodeIds: [] },
-    ])
-
+  const handleCreateRootDraft = useCallback(() => {
+    createDraftBelow('', null)
     setTimeout(() => {
       fitView({ duration: 300 })
     }, 50)
-  }, [fitView])
+  }, [fitView, createDraftBelow])
 
-  useEffect(() => {
-    setChatEditingNodeId(null)
-    setChatEditContent('')
-    setChatEditError(null)
-  }, [expandedNodeId])
-
-  const [chatEditingNodeId, setChatEditingNodeId] = useState<string | null>(null)
-  const [chatEditContent, setChatEditContent] = useState('')
-  const [isChatSavingEdit, setIsChatSavingEdit] = useState(false)
-  const [chatEditError, setChatEditError] = useState<string | null>(null)
-
-  const startChatEditing = useCallback((nodeId: string, currentContent: string) => {
-    setChatEditingNodeId(nodeId)
-    setChatEditContent(currentContent)
-    setChatEditError(null)
-  }, [])
-
-  const cancelChatEditing = useCallback(() => {
-    setChatEditingNodeId(null)
-    setChatEditContent('')
-    setChatEditError(null)
-  }, [])
-
-  const saveChatEdit = useCallback(async () => {
-    if (!chatEditingNodeId) return
-
-    const text = chatEditContent.trim()
-    if (!text) {
-      cancelChatEditing()
-      return
-    }
-
-    setIsChatSavingEdit(true)
-    setChatEditError(null)
-
-    try {
-      await handleEditNode(chatEditingNodeId, text)
-      setChatEditingNodeId(null)
-    } catch (err) {
-      setChatEditError(err instanceof Error ? err.message : 'Failed to save edit')
-    } finally {
-      setIsChatSavingEdit(false)
-    }
-  }, [chatEditingNodeId, chatEditContent, handleEditNode, cancelChatEditing])
-
-  const expandedPair = expandedNodeId
-    ? pairs.find((p) => p.id === expandedNodeId)
-    : undefined
-
-  const expandedDraft = expandedNodeId
-    ? drafts.find((d) => d.id === expandedNodeId)
-    : undefined
-
+  const expandedPair = expandedNodeId ? pairs.find((p) => p.id === expandedNodeId) : undefined
+  const expandedDraft = expandedNodeId ? drafts.find((d) => d.id === expandedNodeId) : undefined
   const isExpanded = !!expandedPair || !!expandedDraft
 
-  // Navigation logic: find parent and child nodes for the expanded node
+  // Navigation logic for expanded view
   const getAdjacentNodes = useCallback(() => {
     if (!expandedPair || !graph) return { parentPairs: [], childPairs: [] }
 
@@ -770,7 +425,6 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       pairIdByAnchorNodeId.set(p.anchorNodeId, p.id)
     }
 
-    // Find parent nodes: edges where target is the current node's user node
     const parentPairs: typeof pairs = []
     for (const edge of rawEdges) {
       if (edge.target === expandedPair.userNode.id) {
@@ -784,8 +438,6 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       }
     }
 
-    // Find child nodes: edges where source is the current node's anchor node
-    // The target of these edges is a user node ID, which is also the pair ID
     const childPairs: typeof pairs = []
     for (const edge of rawEdges) {
       if (edge.source === expandedPair.anchorNodeId) {
@@ -800,6 +452,14 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   }, [expandedPair, graph, pairs])
 
   const { parentPairs, childPairs } = getAdjacentNodes()
+
+  const saveChatEdit = useCallback(async () => {
+    if (!expandedPair) return
+    await chatEdit.saveEdit(
+      async (content) => await handleEditNode(expandedPair.id, content),
+      expandedPair.userNode.label
+    )
+  }, [expandedPair, chatEdit, handleEditNode])
 
   return (
     <div className="graph-shell">
@@ -837,41 +497,41 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                 id={`expanded-pair-${expandedPair.id}`}
                 className="graph-expanded-chat-item"
               >
-                {chatEditingNodeId === expandedPair.id ? (
+                {chatEdit.isEditing ? (
                   <div className="qa-node-edit-container">
                     <input
                       className="qa-node-input qa-node-input--chat-mode"
-                      value={chatEditContent}
-                      onChange={(e) => setChatEditContent(e.target.value)}
+                      value={chatEdit.editContent}
+                      onChange={(e) => chatEdit.setEditContent(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault()
                           saveChatEdit()
                         } else if (e.key === 'Escape') {
-                          cancelChatEditing()
+                          chatEdit.cancelEditing()
                         }
                       }}
-                      disabled={isChatSavingEdit}
+                      disabled={chatEdit.isSaving}
                       autoFocus
                       placeholder="Edit your message..."
                     />
                     <div className="qa-node-edit-actions">
                       <button
                         className="qa-node-edit-cancel"
-                        onClick={cancelChatEditing}
-                        disabled={isChatSavingEdit}
+                        onClick={chatEdit.cancelEditing}
+                        disabled={chatEdit.isSaving}
                       >
                         Cancel
                       </button>
                       <button
                         className="qa-node-edit-save"
                         onClick={saveChatEdit}
-                        disabled={isChatSavingEdit || !chatEditContent.trim()}
+                        disabled={chatEdit.isSaving || !chatEdit.editContent.trim()}
                       >
-                        {isChatSavingEdit ? 'Saving...' : 'Save'}
+                        {chatEdit.isSaving ? 'Saving...' : 'Save'}
                       </button>
                     </div>
-                    {chatEditError && <div className="qa-node-error">{chatEditError}</div>}
+                    {chatEdit.error && <div className="qa-node-error">{chatEdit.error}</div>}
                   </div>
                 ) : (
                   <>
@@ -879,7 +539,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                       <div className="qa-bubble qa-bubble--user">{expandedPair.userNode.label}</div>
                       <button
                         className="qa-node-edit-icon"
-                        onClick={() => startChatEditing(expandedPair.id, expandedPair.userNode.label)}
+                        onClick={() => chatEdit.startEditing(expandedPair.userNode.label)}
                         title="Edit message"
                       >
                         ✎
@@ -887,44 +547,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                     </div>
                     {expandedPair.aiNode && (
                       <div className="qa-bubble qa-bubble--ai">
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }: any) => (
-                              <p style={{ margin: '0.25rem 0' }}>{children}</p>
-                            ),
-                            strong: ({ children }: any) => (
-                              <strong style={{ fontWeight: 700 }}>{children}</strong>
-                            ),
-                            em: ({ children }: any) => (
-                              <em style={{ fontStyle: 'italic' }}>{children}</em>
-                            ),
-                            code: ({ children }: any) => (
-                              <code
-                                style={{
-                                  backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                                  padding: '0.1rem 0.3rem',
-                                  borderRadius: '0.2rem',
-                                  fontFamily: 'monospace',
-                                }}
-                              >
-                                {children}
-                              </code>
-                            ),
-                            ul: ({ children }: any) => (
-                              <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
-                                {children}
-                              </ul>
-                            ),
-                            ol: ({ children }: any) => (
-                              <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
-                                {children}
-                              </ol>
-                            ),
-                            li: ({ children }: any) => (
-                              <li style={{ margin: '0.1rem 0' }}>{children}</li>
-                            ),
-                          }}
-                        >
+                        <ReactMarkdown components={markdownComponents}>
                           {expandedPair.aiNode.label}
                         </ReactMarkdown>
                       </div>
@@ -940,40 +563,38 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                   <input
                     className="qa-node-input qa-node-input--chat-mode"
                     placeholder="Ask a question..."
-                    value={chatEditContent}
-                    onChange={(e) => setChatEditContent(e.target.value)}
+                    value={chatEdit.editContent}
+                    onChange={(e) => chatEdit.setEditContent(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey && chatEditContent.trim()) {
+                      if (e.key === 'Enter' && !e.shiftKey && chatEdit.editContent.trim()) {
                         e.preventDefault()
-                        if (expandedDraft && chatEditContent.trim()) {
-                          setIsChatSavingEdit(true)
-                          handleSendFromDraft(expandedDraft.fromNodeIds, chatEditContent, expandedDraft.id)
-                            .catch(() => setChatEditError('Failed to send'))
-                            .finally(() => setIsChatSavingEdit(false))
+                        if (expandedDraft && chatEdit.editContent.trim()) {
+                          chatEdit.setError(null)
+                          handleSendFromDraft(expandedDraft.fromNodeIds, chatEdit.editContent, expandedDraft.id)
+                            .catch(() => chatEdit.setError('Failed to send'))
                         }
                       }
                     }}
-                    disabled={isChatSavingEdit}
+                    disabled={chatEdit.isSaving}
                     autoFocus
                   />
                   <div className="qa-node-edit-actions">
                     <button
                       className="qa-node-send-button"
                       onClick={() => {
-                        if (expandedDraft && chatEditContent.trim()) {
-                          setIsChatSavingEdit(true)
-                          handleSendFromDraft(expandedDraft.fromNodeIds, chatEditContent, expandedDraft.id)
-                            .catch(() => setChatEditError('Failed to send'))
-                            .finally(() => setIsChatSavingEdit(false))
+                        if (expandedDraft && chatEdit.editContent.trim()) {
+                          chatEdit.setError(null)
+                          handleSendFromDraft(expandedDraft.fromNodeIds, chatEdit.editContent, expandedDraft.id)
+                            .catch(() => chatEdit.setError('Failed to send'))
                         }
                       }}
-                      disabled={isChatSavingEdit || !chatEditContent.trim()}
+                      disabled={chatEdit.isSaving || !chatEdit.editContent.trim()}
                       style={{ marginTop: '0.5rem' }}
                     >
-                      {isChatSavingEdit ? 'Sending...' : 'Send'}
+                      {chatEdit.isSaving ? 'Sending...' : 'Send'}
                     </button>
                   </div>
-                  {chatEditError && <div className="qa-node-error">{chatEditError}</div>}
+                  {chatEdit.error && <div className="qa-node-error">{chatEdit.error}</div>}
                 </div>
               </div>
             )}
@@ -1021,8 +642,8 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               onNodesChange={onNodesChange}
               proOptions={{ hideAttribution: true }}
               style={{ width: '100%', height: '100%' }}
-              minZoom={0.07}
-              maxZoom={4}
+              minZoom={REACT_FLOW_CONFIG.minZoom}
+              maxZoom={REACT_FLOW_CONFIG.maxZoom}
             >
               <Background gap={16} color="#e5e7eb" />
               <Controls />
@@ -1032,7 +653,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
             <button
               type="button"
               className="graph-toolbar-button"
-              onClick={handleCreateRootDraftWithCenter}
+              onClick={handleCreateRootDraft}
             >
               <span className="graph-toolbar-button-icon">+</span>
               <span className="graph-toolbar-button-label">New starting node</span>

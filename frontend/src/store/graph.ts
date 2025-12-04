@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import * as api from '../services/api'
 
 export type GraphNode = {
   id: string
@@ -71,9 +72,10 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       errorByConversationId: { ...state.errorByConversationId, [conversationId]: null },
     }))
     try {
-      const res = await fetch(`/api/graph/${conversationId}`)
-      if (!res.ok) throw new Error('Failed to load graph')
-      const data = (await res.json()) as { nodes: GraphNode[]; edges: GraphEdge[] }
+      const data = await fetch(`/api/graph/${conversationId}`).then(res => {
+        if (!res.ok) throw new Error('Failed to load graph')
+        return res.json() as Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }>
+      })
       set((state) => ({
         graphByConversationId: {
           ...state.graphByConversationId,
@@ -123,14 +125,6 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         },
       }
     })
-    try {
-      await fetch(`/api/graph/${conversationId}/positions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positions }),
-      })
-    } catch {
-      // Ignore position update errors for now; UI already reflects the new layout.
-    }
+    await api.updateNodePositions(conversationId, positions)
   },
 }))

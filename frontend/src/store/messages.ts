@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import * as api from '../services/api'
 
 export type Message = {
   id: string
@@ -16,6 +17,25 @@ type MessageActions = {
   setMessagesForConversation: (conversationId: string, messages: Message[]) => void
   appendMessages: (conversationId: string, messages: Message | Message[]) => void
   sendMessage: (conversationId: string, content: string, fromNodeIds?: string[] | null, draftNodeId?: string | null) => Promise<void>
+}
+
+/**
+ * Transform server message format to client format
+ */
+function toClientMessage(m: {
+  id: string
+  conversation_id: string
+  author: 'user' | 'ai'
+  content: string
+  created_at: string
+}): Message {
+  return {
+    id: m.id,
+    conversationId: m.conversation_id,
+    author: m.author,
+    content: m.content,
+    createdAt: m.created_at,
+  }
 }
 
 export const useMessageStore = create<MessageState & MessageActions>((set, get) => ({
@@ -42,58 +62,10 @@ export const useMessageStore = create<MessageState & MessageActions>((set, get) 
     const trimmed = content.trim()
     if (!trimmed) return
 
-    const response = await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversationId,
-        content: trimmed,
-        fromNodeIds: fromNodeIds ?? [],
-        draftNodeId: draftNodeId ?? null,
-      }),
-    })
+    const data = await api.sendMessage(conversationId, trimmed, fromNodeIds, draftNodeId)
 
-    if (!response.ok) {
-      const errorBody = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null
-      const msg = errorBody?.error ?? 'Failed to send message'
-      throw new Error(msg)
-    }
-
-    const data = (await response.json()) as {
-      userMessage: {
-        id: string
-        conversation_id: string
-        author: 'user' | 'ai'
-        content: string
-        created_at: string
-      }
-      aiMessage: {
-        id: string
-        conversation_id: string
-        author: 'user' | 'ai'
-        content: string
-        created_at: string
-      }
-    }
-
-    const toClient = (m: {
-      id: string
-      conversation_id: string
-      author: 'user' | 'ai'
-      content: string
-      created_at: string
-    }): Message => ({
-      id: m.id,
-      conversationId: m.conversation_id,
-      author: m.author,
-      content: m.content,
-      createdAt: m.created_at,
-    })
-
-    const userMsg = toClient(data.userMessage)
-    const aiMsg = toClient(data.aiMessage)
+    const userMsg = toClientMessage(data.userMessage)
+    const aiMsg = toClientMessage(data.aiMessage)
     const current = get().messagesByConversationId[conversationId] ?? []
 
     set((state) => ({
