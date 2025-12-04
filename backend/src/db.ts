@@ -1,3 +1,5 @@
+import { insertMessage, insertNode, insertEdge, createMessage, createNode, createEdge, fetchGraphStructure } from './db-helpers'
+
 export type Conversation = { id: string; title: string; created_at: string; system_instruction?: string }
 
 export async function buildEchoFromAncestors(
@@ -85,20 +87,7 @@ export async function updateConversationTitle(db: D1Database, conversationId: st
   return res || null
 }
 
-// not used
-export async function listMessagesForConversation(
-  db: D1Database,
-  conversationId: string,
-  limit = 20,
-): Promise<Message[]> {
-  const res = await db
-    .prepare(
-      'SELECT id, conversation_id, author, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC LIMIT ?',
-    )
-    .bind(conversationId, limit)
-    .all<Message>()
-  return (res.results || []) as Message[]
-}
+
 
 export async function listMessagesForNodeAncestors(
   db: D1Database,
@@ -109,17 +98,8 @@ export async function listMessagesForNodeAncestors(
   if (!fromNodeIds.length) {
     return []
   }
-  const nodesRes = await db
-    .prepare('SELECT id, message_id FROM nodes WHERE conversation_id = ?')
-    .bind(conversationId)
-    .all<{ id: string; message_id: string | null }>()
-  const edgesRes = await db
-    .prepare('SELECT source, target FROM edges WHERE conversation_id = ?')
-    .bind(conversationId)
-    .all<{ source: string; target: string }>()
 
-  const nodes = (nodesRes.results || []) as { id: string; message_id: string | null }[]
-  const edges = (edgesRes.results || []) as { source: string; target: string }[]
+  const { nodes, edges } = await fetchGraphStructure(db, conversationId)
 
   if (!nodes.length) {
     return []
@@ -192,17 +172,7 @@ export async function deleteNodeSubtreeRespectingJoins(
   conversationId: string,
   rootNodeId: string,
 ): Promise<{ deletedNodeIds: string[] }> {
-  const nodesRes = await db
-    .prepare('SELECT id, message_id FROM nodes WHERE conversation_id = ?')
-    .bind(conversationId)
-    .all<{ id: string; message_id: string | null }>()
-  const edgesRes = await db
-    .prepare('SELECT source, target FROM edges WHERE conversation_id = ?')
-    .bind(conversationId)
-    .all<{ source: string; target: string }>()
-
-  const nodes = (nodesRes.results || []) as { id: string; message_id: string | null }[]
-  const edges = (edgesRes.results || []) as { source: string; target: string }[]
+  const { nodes, edges } = await fetchGraphStructure(db, conversationId)
 
   if (!nodes.length) {
     return { deletedNodeIds: [] }
@@ -329,52 +299,15 @@ export async function createMessageWithAI(
   content: string,
   fromNodeIds?: string[] | null,
   aiOverrideContent?: string | null,
+  draftNodeId?: string | null,
 ): Promise<{ userMessage: Message; aiMessage: Message; graphDelta: GraphDelta }> {
-  const now = new Date().toISOString()
-
-  const userMessage: Message = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    author: 'user',
-    content,
-    created_at: now,
-  }
-
+  const userMessage = createMessage(conversationId, 'user', content)
   const aiContent = aiOverrideContent ?? `Echo: ${content}`
-  const aiMessage: Message = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    author: 'ai',
-    content: aiContent,
-    created_at: new Date().toISOString(),
-  }
+  const aiMessage = createMessage(conversationId, 'ai', aiContent)
 
   // Persist messages
-  await db
-    .prepare(
-      'INSERT INTO messages (id, conversation_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(
-      userMessage.id,
-      userMessage.conversation_id,
-      userMessage.author,
-      userMessage.content,
-      userMessage.created_at,
-    )
-    .run()
-
-  await db
-    .prepare(
-      'INSERT INTO messages (id, conversation_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(
-      aiMessage.id,
-      aiMessage.conversation_id,
-      aiMessage.author,
-      aiMessage.content,
-      aiMessage.created_at,
-    )
-    .run()
+  await insertMessage(db, userMessage)
+  await insertMessage(db, aiMessage)
 
   // Previous nodes for this conversation, if any. If fromNodeIds are provided use them,
   // otherwise leave this message pair as a new starting point with no parent edge.
@@ -391,94 +324,61 @@ export async function createMessageWithAI(
     prevNodeIds = ((prevRes.results || []) as { id: string }[]).map((r) => r.id)
   }
 
-  const userNode: GraphNode = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    message_id: userMessage.id,
-    type: 'user',
-    label: content,
-    created_at: now,
-    pos_x: null,
-    pos_y: null,
+  // Use draftNodeId if provided, otherwise create new node
+  let userNode: GraphNode
+  let userNodeIsNew = true
+
+  if (draftNodeId) {
+    // Verify draft node exists
+    const existingDraft = await db
+      .prepare('SELECT * FROM nodes WHERE id = ? AND conversation_id = ?')
+      .bind(draftNodeId, conversationId)
+      .first<GraphNode>()
+
+    if (existingDraft) {
+      // Update existing draft node
+      await db
+        .prepare('UPDATE nodes SET message_id = ?, label = ? WHERE id = ? AND conversation_id = ?')
+        .bind(userMessage.id, content, draftNodeId, conversationId)
+        .run()
+
+      userNode = createNode(conversationId, userMessage.id, 'user', content)
+      userNode.id = draftNodeId
+      userNode.pos_x = existingDraft.pos_x
+      userNode.pos_y = existingDraft.pos_y
+      userNodeIsNew = false
+    } else {
+      // Draft node doesn't exist, create new one
+      userNode = createNode(conversationId, userMessage.id, 'user', content)
+      await insertNode(db, userNode)
+      userNodeIsNew = true
+    }
+  } else {
+    userNode = createNode(conversationId, userMessage.id, 'user', content)
+    await insertNode(db, userNode)
+    userNodeIsNew = true
   }
 
-  const aiNode: GraphNode = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    message_id: aiMessage.id,
-    type: 'ai',
-    label: aiContent,
-    created_at: new Date().toISOString(),
-    pos_x: null,
-    pos_y: null,
-  }
-
-  await db
-    .prepare(
-      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at, pos_x, pos_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .bind(
-      userNode.id,
-      userNode.conversation_id,
-      userNode.message_id,
-      userNode.type,
-      userNode.label,
-      userNode.created_at,
-      userNode.pos_x,
-      userNode.pos_y,
-    )
-    .run()
-
-  await db
-    .prepare(
-      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at, pos_x, pos_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .bind(
-      aiNode.id,
-      aiNode.conversation_id,
-      aiNode.message_id,
-      aiNode.type,
-      aiNode.label,
-      aiNode.created_at,
-      aiNode.pos_x,
-      aiNode.pos_y,
-    )
-    .run()
+  const aiNode = createNode(conversationId, aiMessage.id, 'ai', aiContent)
+  await insertNode(db, aiNode)
 
   const newEdges: GraphEdge[] = []
 
-  for (const prevNodeId of prevNodeIds) {
-    const edgeFromPrevToUser: GraphEdge = {
-      id: crypto.randomUUID(),
-      conversation_id: conversationId,
-      source: prevNodeId,
-      target: userNode.id,
-      created_at: new Date().toISOString(),
+  // Only create edges from previous nodes to user node if user node is new
+  if (userNodeIsNew && prevNodeIds.length > 0) {
+    for (const prevNodeId of prevNodeIds) {
+      const edgeFromPrevToUser = createEdge(conversationId, prevNodeId, userNode.id)
+      newEdges.push(edgeFromPrevToUser)
+      await insertEdge(db, edgeFromPrevToUser)
     }
-    newEdges.push(edgeFromPrevToUser)
   }
 
-  const edgeUserToAi: GraphEdge = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    source: userNode.id,
-    target: aiNode.id,
-    created_at: new Date().toISOString(),
-  }
-
+  const edgeUserToAi = createEdge(conversationId, userNode.id, aiNode.id)
   newEdges.push(edgeUserToAi)
-
-  for (const edge of newEdges) {
-    await db
-      .prepare(
-        'INSERT INTO edges (id, conversation_id, source, target, created_at) VALUES (?, ?, ?, ?, ?)',
-      )
-      .bind(edge.id, edge.conversation_id, edge.source, edge.target, edge.created_at)
-      .run()
-  }
+  await insertEdge(db, edgeUserToAi)
 
   const graphDelta: GraphDelta = {
-    newNodes: [userNode, aiNode],
+    newNodes: userNodeIsNew ? [userNode, aiNode] : [aiNode],
     newEdges,
   }
 
@@ -537,70 +437,14 @@ export async function addAiResponseNode(
   parentNodeId: string,
   aiContent: string,
 ): Promise<{ aiMessage: Message; aiNode: GraphNode; edge: GraphEdge }> {
-  const now = new Date().toISOString()
+  const aiMessage = createMessage(conversationId, 'ai', aiContent)
+  await insertMessage(db, aiMessage)
 
-  const aiMessage: Message = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    author: 'ai',
-    content: aiContent,
-    created_at: now,
-  }
+  const aiNode = createNode(conversationId, aiMessage.id, 'ai', aiContent)
+  await insertNode(db, aiNode)
 
-  await db
-    .prepare(
-      'INSERT INTO messages (id, conversation_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(
-      aiMessage.id,
-      aiMessage.conversation_id,
-      aiMessage.author,
-      aiMessage.content,
-      aiMessage.created_at,
-    )
-    .run()
-
-  const aiNode: GraphNode = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    message_id: aiMessage.id,
-    type: 'ai',
-    label: aiContent,
-    created_at: now,
-    pos_x: null,
-    pos_y: null,
-  }
-
-  await db
-    .prepare(
-      'INSERT INTO nodes (id, conversation_id, message_id, type, label, created_at, pos_x, pos_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    )
-    .bind(
-      aiNode.id,
-      aiNode.conversation_id,
-      aiNode.message_id,
-      aiNode.type,
-      aiNode.label,
-      aiNode.created_at,
-      aiNode.pos_x,
-      aiNode.pos_y,
-    )
-    .run()
-
-  const edge: GraphEdge = {
-    id: crypto.randomUUID(),
-    conversation_id: conversationId,
-    source: parentNodeId,
-    target: aiNode.id,
-    created_at: now,
-  }
-
-  await db
-    .prepare(
-      'INSERT INTO edges (id, conversation_id, source, target, created_at) VALUES (?, ?, ?, ?, ?)',
-    )
-    .bind(edge.id, edge.conversation_id, edge.source, edge.target, edge.created_at)
-    .run()
+  const edge = createEdge(conversationId, parentNodeId, aiNode.id)
+  await insertEdge(db, edge)
 
   return { aiMessage, aiNode, edge }
 }
