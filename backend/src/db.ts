@@ -300,6 +300,7 @@ export async function createMessageWithAI(
   fromNodeIds?: string[] | null,
   aiOverrideContent?: string | null,
   draftNodeId?: string | null,
+  position?: { x: number; y: number } | null,
 ): Promise<{ userMessage: Message; aiMessage: Message; graphDelta: GraphDelta }> {
   const userMessage = createMessage(conversationId, 'user', content)
   const aiContent = aiOverrideContent ?? `Echo: ${content}`
@@ -350,16 +351,28 @@ export async function createMessageWithAI(
     } else {
       // Draft node doesn't exist, create new one
       userNode = createNode(conversationId, userMessage.id, 'user', content)
+      if (position) {
+        userNode.pos_x = position.x
+        userNode.pos_y = position.y
+      }
       await insertNode(db, userNode)
       userNodeIsNew = true
     }
   } else {
     userNode = createNode(conversationId, userMessage.id, 'user', content)
+    if (position) {
+      userNode.pos_x = position.x
+      userNode.pos_y = position.y
+    }
     await insertNode(db, userNode)
     userNodeIsNew = true
   }
 
   const aiNode = createNode(conversationId, aiMessage.id, 'ai', aiContent)
+  // Inherit position from user node so the pair stays in place
+  aiNode.pos_x = userNode.pos_x
+  aiNode.pos_y = userNode.pos_y
+
   await insertNode(db, aiNode)
 
   const newEdges: GraphEdge[] = []

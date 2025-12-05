@@ -84,7 +84,8 @@ export async function sendMessage(
     conversationId: string,
     content: string,
     fromNodeIds?: string[] | null,
-    draftNodeId?: string | null
+    draftNodeId?: string | null,
+    position?: { x: number; y: number } | null
 ): Promise<MessageResponse> {
     return apiRequest<MessageResponse>('/api/messages', {
         method: 'POST',
@@ -94,6 +95,7 @@ export async function sendMessage(
             content: content.trim(),
             fromNodeIds: fromNodeIds ?? [],
             draftNodeId: draftNodeId ?? null,
+            position: position ?? null,
         }),
     })
 }

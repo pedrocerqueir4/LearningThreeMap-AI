@@ -249,11 +249,12 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
-.conversation-menu-item {
+.conversation-menu-item,
+.conversation-menu-item-delete {
   width: 100%;
   border: none;
   background: transparent;
-  color: #fca5a5;
+  color: #ffffff;
   justify-content: flex-start;
   padding: 0.35rem 0.5rem;
   border-radius: 0.4rem;
@@ -261,7 +262,12 @@
 }
 
 .conversation-menu-item:hover {
-  background-color: rgba(248, 113, 113, 0.1);
+  background-color: rgba(65, 65, 65, 0.2);
+}
+
+.conversation-menu-item-delete:hover {
+  color: rgba(199, 0, 0, 0.637);
+  background-color: rgba(102, 50, 50, 0.2);
 }
 
 .conversation-empty {
@@ -1042,14 +1048,6 @@
 :root[data-theme='dark'] .conversation-menu {
   background-color: #1f1f24;
   border-color: #2e2e36;
-}
-
-:root[data-theme='dark'] .conversation-menu-item {
-  color: #fca5a5;
-}
-
-:root[data-theme='dark'] .conversation-menu-item:hover {
-  background-color: rgba(248, 113, 113, 0.1);
 }
 
 :root[data-theme='dark'] .roadmap-node {

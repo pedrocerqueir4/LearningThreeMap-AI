@@ -26,7 +26,7 @@ import * as api from '../services/api'
 export type ConversationGraphProps = {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null
   conversationId: string
-  onSendFromNode: (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null) => Promise<void>
+  onSendFromNode: (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null, position?: { x: number; y: number } | null) => Promise<void>
 }
 
 const nodeTypes = { qa: QaNode }
@@ -39,7 +39,7 @@ type Pair = {
 }
 
 function InnerConversationGraph({ graph, conversationId, onSendFromNode }: ConversationGraphProps) {
-  const { fitView } = useReactFlow()
+  const { fitView, getNodes } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState<QaNodeData>([])
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
@@ -53,10 +53,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const handleSendFromDraft = useCallback(
     async (fromNodeIds: string[] | null, content: string, draftId: string) => {
-      await onSendFromNode(fromNodeIds, content, draftId)
+      const draftNode = getNodes().find((n) => n.id === draftId)
+      const position = draftNode ? { x: draftNode.position.x, y: draftNode.position.y } : null
+      await onSendFromNode(fromNodeIds, content, draftId, position)
       removeDraft(draftId)
     },
-    [onSendFromNode, removeDraft]
+    [onSendFromNode, removeDraft, getNodes]
   )
 
   const handleEditNode = useCallback(
@@ -108,10 +110,14 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     const reactFlowNodes: Node<QaNodeData>[] = pairs.map((p, index) => {
       const fallbackPosition = { x: 0, y: index * 240 }
       const anchorGraphNode = nodeById.get(p.anchorNodeId)
-      const position =
-        anchorGraphNode && anchorGraphNode.pos_x != null && anchorGraphNode.pos_y != null
-          ? { x: anchorGraphNode.pos_x, y: anchorGraphNode.pos_y }
-          : fallbackPosition
+      let position = fallbackPosition
+
+      if (anchorGraphNode && anchorGraphNode.pos_x != null && anchorGraphNode.pos_y != null) {
+        position = { x: anchorGraphNode.pos_x, y: anchorGraphNode.pos_y }
+      } else if (p.userNode.pos_x != null && p.userNode.pos_y != null) {
+        // Fallback to user node position if anchor (e.g. AI node) has no position yet
+        position = { x: p.userNode.pos_x, y: p.userNode.pos_y }
+      }
 
       return {
         id: p.id,

@@ -136,12 +136,16 @@ app.post('/api/messages', async (c) => {
     content?: string
     fromNodeIds?: string[]
     draftNodeId?: string | null
+    position?: { x: number; y: number } | null
   }
 
   const conversationId = validateConversationId(body.conversationId)
   const content = validateContent(body.content)
   const fromNodeIds = parseNodeIds(body.fromNodeIds)
   const draftNodeId = typeof body.draftNodeId === 'string' ? body.draftNodeId.trim() || null : null
+  const position = body.position && typeof body.position.x === 'number' && typeof body.position.y === 'number'
+    ? { x: body.position.x, y: body.position.y }
+    : null
 
   if (!conversationId || !content) {
     return c.json({ error: ERROR_MESSAGES.CONTENT_REQUIRED }, 400)
@@ -158,7 +162,7 @@ app.post('/api/messages', async (c) => {
     } catch (e) {
       // Ignore error, use default echo
     }
-    const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho, draftNodeId)
+    const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho, draftNodeId, position)
     return c.json(result, 201)
   }
 
@@ -184,7 +188,7 @@ app.post('/api/messages', async (c) => {
     return c.json({ error: error instanceof Error ? error.message : ERROR_MESSAGES.AI_FAILED }, 500)
   }
 
-  const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiContent, draftNodeId)
+  const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiContent, draftNodeId, position)
 
   // Try to auto-generate a short conversation title after the first AI answer
   try {

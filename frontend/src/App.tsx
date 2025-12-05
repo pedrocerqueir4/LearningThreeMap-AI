@@ -80,12 +80,12 @@ function App() {
     }
   }, [selectedConversation, graphByConversationId, fetchGraph])
 
-  const handleSendFromNode = async (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null) => {
+  const handleSendFromNode = async (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null, position?: { x: number; y: number } | null) => {
     if (!selectedConversation) return
 
     const conversationId = selectedConversation.id
 
-    await sendMessage(conversationId, content, fromNodeIds, draftNodeId)
+    await sendMessage(conversationId, content, fromNodeIds, draftNodeId, position)
     await fetchGraph(conversationId)
     // Refresh conversations so any auto-generated title from the backend is
     // reflected in the sidebar list.
@@ -234,16 +234,16 @@ function App() {
                       <button
                         type="button"
                         className="conversation-menu-item"
-                        onClick={() => handleDeleteConversation(conv.id)}
-                      >
-                        Delete conversation
-                      </button>
-                      <button
-                        type="button"
-                        className="conversation-menu-item"
                         onClick={() => handleOpenAgentModal(conv.id, conv.system_instruction)}
                       >
                         Define Agent
+                      </button>
+                      <button
+                        type="button"
+                        className="conversation-menu-item-delete"
+                        onClick={() => handleDeleteConversation(conv.id)}
+                      >
+                        Delete conversation
                       </button>
                     </div>
                   )}
