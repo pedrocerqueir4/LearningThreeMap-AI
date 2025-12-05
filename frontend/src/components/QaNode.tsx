@@ -92,12 +92,18 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                     handleSend()
                                 }
                             }}
+                            onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
                             disabled={sending}
                             maxLength={500}
                         />
                         <button
                             className="qa-node-send-button"
-                            onClick={handleSend}
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                handleSend()
+                            }}
+                            onDoubleClick={(e) => e.stopPropagation()}
                             disabled={sending || !draft.trim()}
                             type="button"
                             title={sending ? 'Sending...' : 'Send message'}
@@ -131,20 +137,30 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                             cancelEditing()
                                         }
                                     }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onDoubleClick={(e) => e.stopPropagation()}
                                     disabled={isSavingEdit}
                                     autoFocus
                                 />
                                 <div className="qa-node-edit-actions">
                                     <button
                                         className="qa-node-edit-cancel"
-                                        onClick={cancelEditing}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            cancelEditing()
+                                        }}
+                                        onDoubleClick={(e) => e.stopPropagation()}
                                         disabled={isSavingEdit}
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         className="qa-node-edit-save"
-                                        onClick={saveEdit}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            saveEdit()
+                                        }}
+                                        onDoubleClick={(e) => e.stopPropagation()}
                                         disabled={isSavingEdit || !editContent.trim()}
                                     >
                                         {isSavingEdit ? 'Saving...' : 'Save'}
@@ -157,7 +173,11 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                     <div className="qa-bubble qa-bubble--user">{data.userText}</div>
                                     <button
                                         className="qa-node-edit-icon"
-                                        onClick={startEditing}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            startEditing()
+                                        }}
+                                        onDoubleClick={(e) => e.stopPropagation()}
                                         title="Edit question"
                                     >
                                         ✎
@@ -178,7 +198,11 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                     <button
                         type="button"
                         className="qa-node-dot"
-                        onClick={() => data.onCreateDraftBelow(data.id, data.anchorNodeId ?? null)}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            data.onCreateDraftBelow(data.id, data.anchorNodeId ?? null)
+                        }}
+                        onDoubleClick={(e) => e.stopPropagation()}
                     >
                         +
                     </button>
