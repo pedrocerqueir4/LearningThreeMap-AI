@@ -78,7 +78,7 @@
 - [X] Increase question size in chat mode
 - [X] Make personalized box when deleting a conversation
 - [X] Add animation in sidebar
-- [ ] Improve positioning of the nodes 
+- [X] Improve positioning of the nodes 
 
 ## Phase 9 - AI interaction & Chat mode
 

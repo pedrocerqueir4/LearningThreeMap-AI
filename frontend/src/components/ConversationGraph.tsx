@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -19,7 +19,8 @@ import { useDraftNodes } from '../hooks/useDraftNodes'
 import { useSelectionMode } from '../hooks/useSelectionMode'
 import { useEditMode } from '../hooks/useEditMode'
 import { markdownComponents } from '../utils/markdown'
-import { findFreePosition } from '../utils/position'
+import { findFreePositionAABB, DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT } from '../utils/position'
+import type { NodeRect } from '../utils/position'
 import { EDGE_STYLE, EDGE_MARKER, REACT_FLOW_CONFIG } from '../constants/graph'
 import * as api from '../services/api'
 
@@ -44,6 +45,10 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+
+  // Ref to persist measured node dimensions across re-renders
+  // This solves the timing issue where getNodes() returns undefined dimensions during re-renders
+  const measuredDimensionsRef = useRef<Map<string, { width: number; height: number }>>(new Map())
 
   const { updateNodePositions, fetchGraph } = useGraphStore()
   const { drafts, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
@@ -139,26 +144,79 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
       }
     })
 
-    // Track occupied positions for collision detection
-    const occupiedPositions: { x: number; y: number }[] = reactFlowNodes.map((n) => n.position)
+    // Cache React Flow nodes snapshot once for consistent dimension lookups
+    const rfNodesSnapshot = getNodes()
+
+    // Update the persisted dimensions ref with any valid measurements from React Flow
+    for (const rfNode of rfNodesSnapshot) {
+      if (rfNode.width != null && rfNode.height != null) {
+        measuredDimensionsRef.current.set(rfNode.id, {
+          width: rfNode.width,
+          height: rfNode.height,
+        })
+      }
+    }
+
+    // Build node rectangles for collision detection using actual dimensions
+    const getNodeRect = (node: Node<QaNodeData>): NodeRect => {
+      // First try React Flow snapshot, then fall back to cached dimensions
+      const rfNode = rfNodesSnapshot.find((n) => n.id === node.id)
+      const cachedDims = measuredDimensionsRef.current.get(node.id)
+
+      // Priority: RF snapshot dimensions > cached dimensions > defaults
+      const width = rfNode?.width ?? cachedDims?.width ?? DEFAULT_NODE_WIDTH
+      const height = rfNode?.height ?? cachedDims?.height ?? DEFAULT_NODE_HEIGHT
+
+      return {
+        x: node.position.x,
+        y: node.position.y,
+        width: width,
+        height: height,
+      }
+    }
+
+    // Track occupied node rectangles for collision detection
+    const occupiedRects: NodeRect[] = reactFlowNodes.map(getNodeRect)
 
     // Add local draft nodes (empty question boxes)
     const draftNodes: Node<QaNodeData>[] = drafts.map((draft, index) => {
-      // Default stacking for root drafts (created from the bottom toolbar)
-      let base = { x: 0, y: (pairs.length + index) * 220 }
+      // Default dimensions for new draft nodes
+      const draftWidth = DEFAULT_NODE_WIDTH
+      const draftHeight = DEFAULT_NODE_HEIGHT
+
+      // Default fallback position for root drafts (created from the bottom toolbar)
+      let parentRect: NodeRect = {
+        x: 0,
+        y: (pairs.length + index) * 220,
+        width: draftWidth,
+        height: draftHeight,
+      }
 
       if (draft.anchorNodeId) {
         const sourcePairId = pairIdByAnchorNodeId.get(draft.anchorNodeId)
         if (sourcePairId) {
           const parentNode = reactFlowNodes.find((n) => n.id === sourcePairId)
           if (parentNode) {
-            base = parentNode.position
+            // Get actual parent dimensions
+            parentRect = getNodeRect(parentNode)
           }
         }
       }
 
-      const position = findFreePosition(base, occupiedPositions)
-      occupiedPositions.push(position)
+      // Find a free position using AABB collision detection
+      const position = findFreePositionAABB(
+        parentRect,
+        { width: draftWidth, height: draftHeight },
+        occupiedRects
+      )
+
+      // Add this draft to occupied rects for subsequent drafts
+      occupiedRects.push({
+        x: position.x,
+        y: position.y,
+        width: draftWidth,
+        height: draftHeight,
+      })
 
       return {
         id: draft.id,
