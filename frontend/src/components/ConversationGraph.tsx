@@ -51,7 +51,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const measuredDimensionsRef = useRef<Map<string, { width: number; height: number }>>(new Map())
 
   const { updateNodePositions, fetchGraph } = useGraphStore()
-  const { drafts, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
+  const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
   const { selectionMode, selectedAnchorNodeIds, setSelectionMode, toggleNodeSelection, clearSelection } =
     useSelectionMode(conversationId)
   const chatEdit = useEditMode()
@@ -140,7 +140,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           onEdit: handleEditNode,
           isZoomed: zoomedNodeId === p.id,
         },
-        selected: selectedAnchorNodeIds.includes(p.anchorNodeId),
+        selected: selectionMode !== 'none' && selectedAnchorNodeIds.includes(p.anchorNodeId),
       }
     })
 
@@ -234,7 +234,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           onEdit: handleEditNode,
           isZoomed: zoomedNodeId === draft.id,
         },
-        selected: selectedAnchorNodeIds.includes(draft.anchorNodeId ?? draft.id),
+        selected: selectionMode !== 'none' && selectedAnchorNodeIds.includes(draft.anchorNodeId ?? draft.id),
       }
     })
 
@@ -295,6 +295,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     createDraftBelow,
     handleEditNode,
     selectedAnchorNodeIds,
+    selectionMode,
   ])
 
   useEffect(() => {
@@ -343,10 +344,13 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
+      // Only allow selection when in 'ask' or 'delete' mode
+      if (selectionMode === 'none') return
+
       const anchor = node.data.anchorNodeId ?? node.id
       toggleNodeSelection(anchor)
     },
-    [toggleNodeSelection]
+    [toggleNodeSelection, selectionMode]
   )
 
   const onPaneClick = useCallback(() => {
@@ -391,14 +395,11 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
     const anchorNodeId = selectedAnchorNodeIds[0] ?? null
     const fromNodeIds = [...selectedAnchorNodeIds]
-    const newDraft = {
-      id: `draft-${Math.random().toString(36).slice(2)}`,
-      anchorNodeId,
-      fromNodeIds,
-    }
-    createDraftBelow(newDraft.anchorNodeId ?? '', newDraft.anchorNodeId)
+
+    // Use createDraft to properly handle multiple parent nodes
+    createDraft(anchorNodeId, fromNodeIds)
     clearSelection()
-  }, [selectionMode, selectedAnchorNodeIds, setSelectionMode, createDraftBelow, clearSelection])
+  }, [selectionMode, selectedAnchorNodeIds, setSelectionMode, createDraft, clearSelection])
 
   const handleToggleDeleteSelection = useCallback(() => {
     if (selectionMode !== 'delete') {
@@ -704,6 +705,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               onPaneClick={onPaneClick}
               onNodeDragStop={onNodeDragStop}
               onNodesChange={onNodesChange}
+              elementsSelectable={false}
               proOptions={{ hideAttribution: true }}
               style={{ width: '100%', height: '100%' }}
               minZoom={REACT_FLOW_CONFIG.minZoom}
