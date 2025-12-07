@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { NodeProps } from 'reactflow'
 import { Handle, Position } from 'reactflow'
 import ReactMarkdown from 'react-markdown'
-import { markdownComponents } from '../utils/markdown'
+import { markdownComponents, remarkPlugins, rehypePlugins } from '../utils/markdown'
 import type { QaNodeData } from '../types'
 
 /**
@@ -188,7 +188,11 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
 
                         {data.aiText && !isEditing && (
                             <div className="qa-bubble qa-bubble--ai">
-                                <ReactMarkdown components={markdownComponents}>
+                                <ReactMarkdown
+                                    components={markdownComponents}
+                                    remarkPlugins={remarkPlugins}
+                                    rehypePlugins={rehypePlugins}
+                                >
                                     {data.aiText}
                                 </ReactMarkdown>
                             </div>

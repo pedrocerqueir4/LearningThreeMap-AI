@@ -18,7 +18,7 @@ import { QaNode } from './QaNode'
 import { useDraftNodes } from '../hooks/useDraftNodes'
 import { useSelectionMode } from '../hooks/useSelectionMode'
 import { useEditMode } from '../hooks/useEditMode'
-import { markdownComponents } from '../utils/markdown'
+import { markdownComponents, remarkPlugins, rehypePlugins } from '../utils/markdown'
 import { findFreePositionAABB, DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT } from '../utils/position'
 import type { NodeRect } from '../utils/position'
 import { EDGE_STYLE, EDGE_MARKER, REACT_FLOW_CONFIG } from '../constants/graph'
@@ -612,7 +612,11 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
                     </div>
                     {expandedPair.aiNode && (
                       <div className="qa-bubble qa-bubble--ai">
-                        <ReactMarkdown components={markdownComponents}>
+                        <ReactMarkdown
+                          components={markdownComponents}
+                          remarkPlugins={remarkPlugins}
+                          rehypePlugins={rehypePlugins}
+                        >
                           {expandedPair.aiNode.label}
                         </ReactMarkdown>
                       </div>

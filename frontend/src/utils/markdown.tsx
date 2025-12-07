@@ -1,4 +1,6 @@
 import type { Components } from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 
 /**
  * Shared ReactMarkdown components configuration for consistent rendering
@@ -24,3 +26,12 @@ export const markdownComponents: Components = {
     ol: ({ children }: any) => <ol style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>{children}</ol>,
     li: ({ children }: any) => <li style={{ margin: '0.1rem 0' }}>{children}</li>,
 }
+
+/**
+ * Remark and Rehype plugins for markdown processing
+ * - remarkMath: Parses LaTeX math expressions (inline $...$ and block $$...$$)
+ * - rehypeKatex: Renders LaTeX expressions using KaTeX
+ */
+export const remarkPlugins = [remarkMath]
+export const rehypePlugins = [rehypeKatex]
+
