@@ -50,6 +50,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   // This solves the timing issue where getNodes() returns undefined dimensions during re-renders
   const measuredDimensionsRef = useRef<Map<string, { width: number; height: number }>>(new Map())
 
+  // Ref to track pending position updates (batched and sent when conversation changes)
+  const pendingPositionUpdatesRef = useRef<Map<string, { x: number; y: number }>>(new Map())
+
   const { updateNodePositions, fetchGraph } = useGraphStore()
   const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
   const { selectionMode, selectedAnchorNodeIds, setSelectionMode, toggleNodeSelection, clearSelection } =
@@ -365,16 +368,29 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
       const anchorNodeId = node.data.anchorNodeId ?? node.id
 
-      void updateNodePositions(conversationId, [
-        {
-          nodeId: anchorNodeId,
-          x: node.position.x,
-          y: node.position.y,
-        },
-      ])
+      // Accumulate position updates instead of sending immediately
+      pendingPositionUpdatesRef.current.set(anchorNodeId, {
+        x: node.position.x,
+        y: node.position.y,
+      })
     },
-    [conversationId, updateNodePositions]
+    []
   )
+
+  // Flush pending updates when conversation changes
+  useEffect(() => {
+    return () => {
+      // Cleanup: flush pending updates when conversationId changes or component unmounts
+      if (pendingPositionUpdatesRef.current.size > 0) {
+        const positions = Array.from(pendingPositionUpdatesRef.current.entries()).map(
+          ([nodeId, { x, y }]) => ({ nodeId, x, y })
+        )
+        pendingPositionUpdatesRef.current.clear()
+        void updateNodePositions(conversationId, positions)
+      }
+    }
+  }, [conversationId, updateNodePositions])
+
 
   const onInit = useCallback(() => {
     if (computedNodes.length > 0) {
