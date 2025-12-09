@@ -28,6 +28,10 @@ export async function fetchConversations(): Promise<Conversation[]> {
     return apiRequest<Conversation[]>('/api/conversations')
 }
 
+export async function getConversation(conversationId: string): Promise<Conversation> {
+    return apiRequest<Conversation>(`/api/conversations/${conversationId}`)
+}
+
 export async function createConversation(title?: string): Promise<Conversation> {
     return apiRequest<Conversation>('/api/conversations', {
         method: 'POST',
@@ -152,5 +156,22 @@ export async function updateNode(conversationId: string, nodeId: string, content
 export async function deleteNode(conversationId: string, nodeId: string): Promise<void> {
     await fetch(`/api/graph/${conversationId}/nodes/${encodeURIComponent(nodeId)}`, {
         method: 'DELETE',
+    })
+}
+
+// ============================================================================
+// Viewport API
+// ============================================================================
+
+export async function updateConversationViewport(
+    conversationId: string,
+    viewport: { x: number; y: number; zoom: number }
+): Promise<void> {
+    await fetch(`/api/conversations/${conversationId}/viewport`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(viewport),
+    }).catch(() => {
+        // Ignore viewport update errors; UI already reflects the new viewport
     })
 }

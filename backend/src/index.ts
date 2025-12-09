@@ -25,6 +25,7 @@ import {
   updateConversationTitle,
   getConversationById,
   updateConversationSystemInstruction,
+  updateConversationViewport,
   editUserNodeContent,
   addAiResponseNode,
 } from './db'
@@ -48,6 +49,20 @@ app.post('/api/conversations', async (c) => {
 app.get('/api/conversations', async (c) => {
   const list = await listConversations(c.env.DB)
   return c.json(list)
+})
+
+app.get('/api/conversations/:conversationId', async (c) => {
+  const conversationId = validateConversationId(c.req.param('conversationId'))
+  if (!conversationId) {
+    return c.json({ error: ERROR_MESSAGES.CONVERSATION_ID_REQUIRED }, 400)
+  }
+
+  const conversation = await getConversationById(c.env.DB, conversationId)
+  if (!conversation) {
+    return c.json({ error: ERROR_MESSAGES.CONVERSATION_NOT_FOUND }, 404)
+  }
+
+  return c.json(conversation)
 })
 
 app.put('/api/conversations/:conversationId', async (c) => {
@@ -128,6 +143,34 @@ app.post('/api/graph/:conversationId/positions', async (c) => {
   await updateNodePositions(c.env.DB, conversationId, positions)
 
   return c.json({ updated: positions.length })
+})
+
+app.post('/api/conversations/:conversationId/viewport', async (c) => {
+  const conversationId = validateConversationId(c.req.param('conversationId'))
+
+  if (!conversationId) {
+    return c.json({ error: ERROR_MESSAGES.CONVERSATION_ID_REQUIRED }, 400)
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    x?: number
+    y?: number
+    zoom?: number
+  }
+
+  // Validate viewport values
+  if (typeof body.x !== 'number' || typeof body.y !== 'number' || typeof body.zoom !== 'number') {
+    return c.json({ error: 'Invalid viewport data' }, 400)
+  }
+
+  try {
+    await updateConversationViewport(c.env.DB, conversationId, body.x, body.y, body.zoom)
+    return c.json({ success: true })
+  } catch (error) {
+    // Non-critical operation, log but don't fail
+    console.error('Failed to update viewport:', error)
+    return c.json({ success: false }, 500)
+  }
 })
 
 app.post('/api/messages', async (c) => {

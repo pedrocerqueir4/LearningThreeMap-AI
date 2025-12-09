@@ -24,6 +24,7 @@ import type { NodeRect } from '../utils/position'
 import { EDGE_STYLE, EDGE_MARKER, REACT_FLOW_CONFIG } from '../constants/graph'
 import * as api from '../services/api'
 
+
 export type ConversationGraphProps = {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] } | null
   conversationId: string
@@ -40,7 +41,7 @@ type Pair = {
 }
 
 function InnerConversationGraph({ graph, conversationId, onSendFromNode }: ConversationGraphProps) {
-  const { fitView, getNodes } = useReactFlow()
+  const { fitView, getNodes, getViewport, setViewport } = useReactFlow()
   const [nodes, setNodes, onNodesChange] = useNodesState<QaNodeData>([])
   const [zoomedNodeId, setZoomedNodeId] = useState<string | null>(null)
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
@@ -53,7 +54,14 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   // Ref to track pending position updates (batched and sent when conversation changes)
   const pendingPositionUpdatesRef = useRef<Map<string, { x: number; y: number }>>(new Map())
 
+  // Ref to track the current conversationId so cleanup saves to the correct conversation
+  const currentConversationIdRef = useRef(conversationId)
+
+  // Ref to track if viewport has been restored for the current conversation
+  const viewportRestoredRef = useRef(false)
+
   const { updateNodePositions, fetchGraph } = useGraphStore()
+
   const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
   const { selectionMode, selectedAnchorNodeIds, setSelectionMode, toggleNodeSelection, clearSelection } =
     useSelectionMode(conversationId)
@@ -377,26 +385,123 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     []
   )
 
+  // Update the ref whenever conversationId changes
+  useEffect(() => {
+    currentConversationIdRef.current = conversationId
+  }, [conversationId])
+
   // Flush pending updates when conversation changes
   useEffect(() => {
     return () => {
-      // Cleanup: flush pending updates when conversationId changes or component unmounts
+      // Cleanup: flush pending node position updates when conversationId changes or component unmounts
+      // Use ref to get the DEPARTING conversationId, not the new one
+      const departingConversationId = currentConversationIdRef.current
+
       if (pendingPositionUpdatesRef.current.size > 0) {
         const positions = Array.from(pendingPositionUpdatesRef.current.entries()).map(
           ([nodeId, { x, y }]) => ({ nodeId, x, y })
         )
         pendingPositionUpdatesRef.current.clear()
-        void updateNodePositions(conversationId, positions)
+        void updateNodePositions(departingConversationId, positions)
+      }
+
+      // Flush pending viewport update to the DEPARTING conversation
+      // Only save if we have actually restored/interacted with the viewport
+      if (viewportRestoredRef.current) {
+        const currentViewport = getViewport()
+        void api.updateConversationViewport(departingConversationId, {
+          x: currentViewport.x,
+          y: currentViewport.y,
+          zoom: currentViewport.zoom,
+        })
       }
     }
-  }, [conversationId, updateNodePositions])
+  }, [conversationId, updateNodePositions, getViewport])
+
+  // Restore viewport from conversation data when loading
+  // Debounce reference for saving viewport
+  const saveViewportTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Save viewport with debounce (waits 500ms after last change)
+  const debouncedSaveViewport = useCallback(() => {
+    // Don't save if we haven't restored the viewport yet (prevents overwriting with 0,0,1)
+    if (!viewportRestoredRef.current) {
+      return
+    }
+
+    if (saveViewportTimeoutRef.current) {
+      clearTimeout(saveViewportTimeoutRef.current)
+    }
+    saveViewportTimeoutRef.current = setTimeout(() => {
+      const viewport = getViewport()
+      void api.updateConversationViewport(conversationId, {
+        x: viewport.x,
+        y: viewport.y,
+        zoom: viewport.zoom,
+      })
+    }, 500)
+  }, [conversationId, getViewport])
+
+  // Handle when user finishes panning/zooming
+  const onMoveEnd = useCallback(() => {
+    debouncedSaveViewport()
+  }, [debouncedSaveViewport])
+
+  useEffect(() => {
+    // Skip if already restored for this conversation
+    if (viewportRestoredRef.current) {
+      return
+    }
+
+    // Fetch the conversation data to get the latest viewport values
+    const restoreViewport = async () => {
+      try {
+
+        const conversation = await api.getConversation(conversationId)
+
+
+        if (
+          conversation &&
+          typeof conversation.viewport_x === 'number' &&
+          typeof conversation.viewport_y === 'number' &&
+          typeof conversation.viewport_zoom === 'number'
+        ) {
+          // Restore saved viewport
+          setViewport(
+            {
+              x: conversation.viewport_x,
+              y: conversation.viewport_y,
+              zoom: conversation.viewport_zoom,
+            },
+            { duration: 0 }
+          )
+          viewportRestoredRef.current = true
+        } else {
+          // No saved viewport
+          viewportRestoredRef.current = true
+        }
+      } catch (error) {
+        // If fetching fails
+        viewportRestoredRef.current = true
+      }
+    }
+
+    void restoreViewport()
+  }, [conversationId, setViewport])
+
+  // Reset the restoration flag when conversation changes
+  useEffect(() => {
+    return () => {
+      // When conversation changes (cleanup), reset the flag for next conversation
+      viewportRestoredRef.current = false
+    }
+  }, [conversationId])
 
 
   const onInit = useCallback(() => {
-    if (computedNodes.length > 0) {
-      fitView({ padding: REACT_FLOW_CONFIG.fitViewPadding })
-    }
-  }, [fitView, computedNodes.length])
+    // Viewport restoration is handled by the restoreViewport effect
+    // This callback is intentionally empty to prevent any automatic fitView
+  }, [])
 
   const handleToggleAskSelection = useCallback(() => {
     if (selectionMode !== 'ask') {
@@ -718,13 +823,13 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}
-              fitView
               onInit={onInit}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
               onPaneClick={onPaneClick}
               onNodeDragStop={onNodeDragStop}
               onNodesChange={onNodesChange}
+              onMoveEnd={onMoveEnd}
               elementsSelectable={false}
               proOptions={{ hideAttribution: true }}
               style={{ width: '100%', height: '100%' }}

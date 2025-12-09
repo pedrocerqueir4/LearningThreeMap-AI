@@ -8,6 +8,9 @@ export type Conversation = {
   created_at: string
   isDraft?: boolean
   system_instruction?: string
+  viewport_x?: number | null
+  viewport_y?: number | null
+  viewport_zoom?: number | null
 }
 
 type ConversationState = {

@@ -1,6 +1,14 @@
 import { insertMessage, insertNode, insertEdge, createMessage, createNode, createEdge, fetchGraphStructure } from './db-helpers'
 
-export type Conversation = { id: string; title: string; created_at: string; system_instruction?: string }
+export type Conversation = {
+  id: string
+  title: string
+  created_at: string
+  system_instruction?: string
+  viewport_x?: number | null
+  viewport_y?: number | null
+  viewport_zoom?: number | null
+}
 
 export async function buildEchoFromAncestors(
   db: D1Database,
@@ -60,20 +68,20 @@ export async function updateConversationSystemInstruction(
   systemInstruction: string,
 ): Promise<Conversation | null> {
   const res = await db
-    .prepare("UPDATE conversations SET system_instruction = ? WHERE id = ? RETURNING id, title, created_at, system_instruction")
+    .prepare("UPDATE conversations SET system_instruction = ? WHERE id = ? RETURNING id, title, created_at, system_instruction, viewport_x, viewport_y, viewport_zoom")
     .bind(systemInstruction, conversationId)
     .first<Conversation>()
   return res || null
 }
 
 export async function listConversations(db: D1Database): Promise<Conversation[]> {
-  const res = await db.prepare("SELECT id, title, created_at, system_instruction FROM conversations ORDER BY created_at DESC").all<Conversation>()
+  const res = await db.prepare("SELECT id, title, created_at, system_instruction, viewport_x, viewport_y, viewport_zoom FROM conversations ORDER BY created_at DESC").all<Conversation>()
   return (res.results || []) as Conversation[]
 }
 
 export async function getConversationById(db: D1Database, conversationId: string): Promise<Conversation | null> {
   const res = await db
-    .prepare("SELECT id, title, created_at, system_instruction FROM conversations WHERE id = ?")
+    .prepare("SELECT id, title, created_at, system_instruction, viewport_x, viewport_y, viewport_zoom FROM conversations WHERE id = ?")
     .bind(conversationId)
     .first<Conversation>()
   return res || null
@@ -81,8 +89,24 @@ export async function getConversationById(db: D1Database, conversationId: string
 
 export async function updateConversationTitle(db: D1Database, conversationId: string, title: string): Promise<Conversation | null> {
   const res = await db
-    .prepare("UPDATE conversations SET title = ? WHERE id = ? RETURNING id, title, created_at, system_instruction")
+    .prepare("UPDATE conversations SET title = ? WHERE id = ? RETURNING id, title, created_at, system_instruction, viewport_x, viewport_y, viewport_zoom")
     .bind(title, conversationId)
+    .first<Conversation>()
+  return res || null
+}
+
+export async function updateConversationViewport(
+  db: D1Database,
+  conversationId: string,
+  x: number,
+  y: number,
+  zoom: number,
+): Promise<Conversation | null> {
+  const res = await db
+    .prepare(
+      "UPDATE conversations SET viewport_x = ?, viewport_y = ?, viewport_zoom = ? WHERE id = ? RETURNING id, title, created_at, system_instruction, viewport_x, viewport_y, viewport_zoom"
+    )
+    .bind(x, y, zoom, conversationId)
     .first<Conversation>()
   return res || null
 }
