@@ -60,6 +60,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   // Ref to track if viewport has been restored for the current conversation
   const viewportRestoredRef = useRef(false)
 
+  // Ref to save viewport state before entering chat mode (for restoration when closing)
+  const viewportBeforeChatModeRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
+
+  // Ref to track that we need to restore viewport after exiting chat mode
+  const shouldRestoreViewportRef = useRef(false)
+
   const { updateNodePositions, fetchGraph } = useGraphStore()
 
   const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
@@ -346,11 +352,40 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     chatEdit.setError(null)
   }, [expandedNodeId])
 
+  // Track previous expandedNodeId to detect when exiting chat mode
+  const prevExpandedNodeIdRef = useRef<string | null>(null)
+
+  // Restore viewport when exiting chat mode (after graph is visible again)
+  useEffect(() => {
+    const wasExpanded = prevExpandedNodeIdRef.current !== null
+    const isNowCollapsed = expandedNodeId === null
+
+    // Detect transition from expanded to collapsed (exiting chat mode)
+    if (wasExpanded && isNowCollapsed && shouldRestoreViewportRef.current) {
+      // Small delay to ensure ReactFlow has rendered
+      const timeoutId = setTimeout(() => {
+        if (viewportBeforeChatModeRef.current) {
+          setViewport(viewportBeforeChatModeRef.current, { duration: 200 })
+          viewportBeforeChatModeRef.current = null
+        }
+        shouldRestoreViewportRef.current = false
+      }, 50)
+      return () => clearTimeout(timeoutId)
+    }
+
+    prevExpandedNodeIdRef.current = expandedNodeId
+  }, [expandedNodeId, setViewport])
+
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
+      // Save current viewport before entering chat mode
+      if (!expandedNodeId) {
+        viewportBeforeChatModeRef.current = getViewport()
+        shouldRestoreViewportRef.current = true
+      }
       setExpandedNodeId((current) => (current === node.id ? null : node.id))
     },
-    []
+    [expandedNodeId, getViewport]
   )
 
   const onNodeClick = useCallback(
@@ -367,8 +402,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const onPaneClick = useCallback(() => {
     setZoomedNodeId(null)
     clearSelection()
+  }, [clearSelection])
+
+  // Handle double-click on the pane (outside nodes) to zoom in/fit view
+  const onPaneDoubleClick = useCallback(() => {
     fitView({ padding: REACT_FLOW_CONFIG.fitViewPadding, duration: 200 })
-  }, [fitView, clearSelection])
+  }, [fitView])
 
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
@@ -827,6 +866,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
               onPaneClick={onPaneClick}
+              onDoubleClick={onPaneDoubleClick}
               onNodeDragStop={onNodeDragStop}
               onNodesChange={onNodesChange}
               onMoveEnd={onMoveEnd}
