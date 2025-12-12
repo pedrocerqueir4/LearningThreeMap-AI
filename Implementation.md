@@ -86,24 +86,42 @@
 - [X] Allow editing of the user’s submitted question.
 - [X] Add chat mode edition and draft nodes in chat mode.
 - [X] Move to next nodes in chat mode.
-- [ ] Use part of the question to generate the AI response.
+- [ ] Use part of the question to generate the AI response, reforcing question.
 
 ## Phase 10 – Performance
 
 - [ ] Add rate limiting for AI calls.
 - [ ] Add KV-based caching for AI responses (theoretical idea).
 
-## Phase 11 – Security Features
+## Phase 11 - API accessibility
+- [ ] Provide easier access to the API.
 
+## Phase 12 - Initial test functions
+- [ ] Make unit tests for the API.
+- [ ] Make integration tests for the API.
+
+## Phase 13 - User Management
+- [ ] Add user management to the API.
+- [ ] Add user management to the web app.
+- [ ] Add user management to the database.
+
+## Phase 14 – Security Features 
+Note: Implement feature from phase 6 before this phase.
 - [ ] Add authentication to the web app.
 - [ ] Add encryption for sensitive data.
 - [ ] Authentication based in google account.
 
-## Phase 12 - API acessability
+## Phase 15 - Groups & Topics
+- [ ] Add group and topic to the API.
+- [ ] Add groups to the web app.
+- [ ] Add topics to the web app.
+- [ ] Share Conversations between groups.
+- [ ] Previligies for each user (Only view, edit, delete, share).
 
-- [ ] Provide easier access to the API.
+## Phase 16 - Advanced features
+- [ ] Automated division of questions, one question can divide in multiple questions (user can accept or cancel)
 
-## Phase 13 – Deployment
+## Phase 16 – Deployment
 
 - [ ] Deploy frontend to Cloudflare Pages.
 - [ ] Deploy backend to Cloudflare Workers.
