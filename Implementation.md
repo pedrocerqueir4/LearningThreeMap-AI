@@ -86,7 +86,7 @@
 - [X] Allow editing of the user’s submitted question.
 - [X] Add chat mode edition and draft nodes in chat mode.
 - [X] Move to next nodes in chat mode.
-- [ ] Use part of the question to generate the AI response, reforcing question.
+- [-] Use part of the question to generate the AI response, reforcing question.
 
 ## Phase 10 – Performance
 

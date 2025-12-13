@@ -21,7 +21,12 @@ export type QaNodeData = {
     onCreateDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
     onEdit: (nodeId: string, newContent: string) => Promise<void>
     isZoomed: boolean
+    // Lock mode for text selection
+    isLocked?: boolean
+    onToggleLockMode?: () => void
+    onTextSelected?: (text: string, nodeId: string) => void
 }
+
 
 /**
  * Draft node representation

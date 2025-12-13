@@ -182,12 +182,36 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                     >
                                         ✎
                                     </button>
+                                    {data.onToggleLockMode && (
+                                        <button
+                                            className={`qa-node-lock-icon${data.isLocked ? ' active' : ''}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                data.onToggleLockMode?.()
+                                            }}
+                                            onDoubleClick={(e) => e.stopPropagation()}
+                                            title={data.isLocked ? 'Unlock movement' : 'Lock for text selection'}
+                                        >
+                                            {data.isLocked ? '🔓' : '✋'}
+                                        </button>
+                                    )}
                                 </div>
                             )
                         )}
 
                         {data.aiText && !isEditing && (
-                            <div className="qa-bubble qa-bubble--ai">
+                            <div
+                                className={`qa-bubble qa-bubble--ai${data.isLocked ? ' selectable' : ''}`}
+                                onMouseUp={(e) => {
+                                    if (!data.isLocked || !data.onTextSelected) return
+                                    const selection = window.getSelection()
+                                    const selectedText = selection?.toString().trim()
+                                    if (selectedText && selectedText.length > 0) {
+                                        e.stopPropagation()
+                                        data.onTextSelected(selectedText, data.id)
+                                    }
+                                }}
+                            >
                                 <ReactMarkdown
                                     components={markdownComponents}
                                     remarkPlugins={remarkPlugins}
@@ -197,6 +221,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                 </ReactMarkdown>
                             </div>
                         )}
+
                     </div>
                     {error && <div className="qa-node-error">{error}</div>}
                     <button

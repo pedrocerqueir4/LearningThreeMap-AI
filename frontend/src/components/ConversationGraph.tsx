@@ -47,6 +47,13 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
+  // Lock mode for text selection feature
+  const [isLockMode, setIsLockMode] = useState(false)
+  const [selectedText, setSelectedText] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ x: number; y: number } | null>(null)
+
+
   // Ref to persist measured node dimensions across re-renders
   // This solves the timing issue where getNodes() returns undefined dimensions during re-renders
   const measuredDimensionsRef = useRef<Map<string, { width: number; height: number }>>(new Map())
@@ -90,6 +97,44 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     },
     [conversationId, fetchGraph]
   )
+
+  const handleToggleLockMode = useCallback(() => {
+    setIsLockMode((prev) => !prev)
+    // Clear selection when toggling off
+    if (isLockMode) {
+      setSelectedText(null)
+      setSelectedNodeId(null)
+      setDropdownPosition(null)
+    }
+  }, [isLockMode])
+
+  const handleTextSelected = useCallback(
+    (text: string, nodeId: string) => {
+      // Get the selection position from browser
+      const selection = window.getSelection()
+      if (!selection || selection.rangeCount === 0) return
+
+      const range = selection.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+
+      setSelectedText(text)
+      setSelectedNodeId(nodeId)
+      setDropdownPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.bottom + 8,
+      })
+    },
+    []
+  )
+
+  // handleAskAboutSelection is defined after useMemo since it depends on pairs
+
+  const handleCloseDropdown = useCallback(() => {
+    setSelectedText(null)
+    setSelectedNodeId(null)
+    setDropdownPosition(null)
+    window.getSelection()?.removeAllRanges()
+  }, [])
 
   const { computedNodes, edges, pairs } = useMemo(() => {
     const rawNodes = graph?.nodes ?? []
@@ -156,6 +201,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           onCreateDraftBelow: createDraftBelow,
           onEdit: handleEditNode,
           isZoomed: zoomedNodeId === p.id,
+          isLocked: isLockMode,
+          onToggleLockMode: handleToggleLockMode,
+          onTextSelected: handleTextSelected,
         },
         selected: selectionMode !== 'none' && selectedAnchorNodeIds.includes(p.anchorNodeId),
       }
@@ -313,7 +361,28 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     handleEditNode,
     selectedAnchorNodeIds,
     selectionMode,
+    isLockMode,
+    handleToggleLockMode,
+    handleTextSelected,
   ])
+
+  // handleAskAboutSelection needs to be defined after useMemo since it uses pairs
+  const handleAskAboutSelection = useCallback(() => {
+    if (!selectedText || !selectedNodeId) return
+
+    // Find the anchor node ID for the selected node
+    const pair = pairs.find((p) => p.id === selectedNodeId)
+    const anchorNodeId = pair?.anchorNodeId ?? selectedNodeId
+
+    // Create a draft with the selected text as context
+    createDraft(anchorNodeId, [anchorNodeId])
+
+    // Clear selection state
+    setSelectedText(null)
+    setSelectedNodeId(null)
+    setDropdownPosition(null)
+    window.getSelection()?.removeAllRanges()
+  }, [selectedText, selectedNodeId, pairs, createDraft])
 
   useEffect(() => {
     setNodes((prevNodes) => {
@@ -871,6 +940,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               onNodesChange={onNodesChange}
               onMoveEnd={onMoveEnd}
               elementsSelectable={false}
+              nodesDraggable={!isLockMode}
+              panOnDrag={!isLockMode}
+              zoomOnScroll={!isLockMode}
               proOptions={{ hideAttribution: true }}
               style={{ width: '100%', height: '100%' }}
               minZoom={REACT_FLOW_CONFIG.minZoom}
@@ -947,6 +1019,34 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Text selection dropdown */}
+      {dropdownPosition && selectedText && (
+        <div
+          className="qa-selection-dropdown"
+          style={{
+            left: dropdownPosition.x,
+            top: dropdownPosition.y,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <button
+            type="button"
+            className="qa-selection-dropdown-item"
+            onClick={handleAskAboutSelection}
+          >
+            <span className="qa-selection-dropdown-item-icon">?</span>
+            Ask about
+          </button>
+          <button
+            type="button"
+            className="qa-selection-dropdown-item"
+            onClick={handleCloseDropdown}
+          >
+            <span className="qa-selection-dropdown-item-icon">×</span>
+            Cancel
+          </button>
         </div>
       )}
     </div>
