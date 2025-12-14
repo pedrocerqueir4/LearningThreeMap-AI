@@ -53,6 +53,10 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [dropdownPosition, setDropdownPosition] = useState<{ x: number; y: number } | null>(null)
 
+  // Chat in node selection mode
+  const [isChatInNodeMode, setIsChatInNodeMode] = useState(false)
+  const [pendingContextText, setPendingContextText] = useState<string | null>(null)
+
 
   // Ref to persist measured node dimensions across re-renders
   // This solves the timing issue where getNodes() returns undefined dimensions during re-renders
@@ -75,7 +79,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const { updateNodePositions, fetchGraph } = useGraphStore()
 
-  const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds } = useDraftNodes(conversationId)
+  const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds, updateDraftContextText } = useDraftNodes(conversationId)
   const { selectionMode, selectedAnchorNodeIds, setSelectionMode, toggleNodeSelection, clearSelection } =
     useSelectionMode(conversationId)
   const chatEdit = useEditMode()
@@ -294,6 +298,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           aiText: null,
           anchorNodeId: draft.anchorNodeId,
           fromNodeIds: draft.fromNodeIds,
+          contextText: draft.contextText,
           onSend: handleSendFromDraft,
           onCreateDraftBelow: createDraftBelow,
           onEdit: handleEditNode,
@@ -375,7 +380,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     const anchorNodeId = pair?.anchorNodeId ?? selectedNodeId
 
     // Create a draft with the selected text as context
-    createDraft(anchorNodeId, [anchorNodeId])
+    createDraft(anchorNodeId, [anchorNodeId], selectedText)
 
     // Clear selection state
     setSelectedText(null)
@@ -383,6 +388,39 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
   }, [selectedText, selectedNodeId, pairs, createDraft])
+
+  // Handler for "Chat in node..." option - enters selection mode for picking a draft
+  const handleChatInNodeSelection = useCallback(() => {
+    if (!selectedText) return
+
+    // Store the context text and enter selection mode
+    setPendingContextText(selectedText)
+    setIsChatInNodeMode(true)
+
+    // Close the dropdown
+    setSelectedText(null)
+    setSelectedNodeId(null)
+    setDropdownPosition(null)
+    window.getSelection()?.removeAllRanges()
+  }, [selectedText])
+
+  // Handler for clicking a draft node while in chat-in-node mode
+  const handleDraftClickForContext = useCallback(
+    (draftId: string) => {
+      if (isChatInNodeMode && pendingContextText) {
+        updateDraftContextText(draftId, pendingContextText)
+        setIsChatInNodeMode(false)
+        setPendingContextText(null)
+      }
+    },
+    [isChatInNodeMode, pendingContextText, updateDraftContextText]
+  )
+
+  // Cancel chat-in-node mode
+  const handleCancelChatInNodeMode = useCallback(() => {
+    setIsChatInNodeMode(false)
+    setPendingContextText(null)
+  }, [])
 
   useEffect(() => {
     setNodes((prevNodes) => {
@@ -459,13 +497,19 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<QaNodeData>) => {
+      // Handle chat-in-node mode: clicking a draft node adds context text
+      if (isChatInNodeMode && node.data.mode === 'draft') {
+        handleDraftClickForContext(node.id)
+        return
+      }
+
       // Only allow selection when in 'ask' or 'delete' mode
       if (selectionMode === 'none') return
 
       const anchor = node.data.anchorNodeId ?? node.id
       toggleNodeSelection(anchor)
     },
-    [toggleNodeSelection, selectionMode]
+    [toggleNodeSelection, selectionMode, isChatInNodeMode, handleDraftClickForContext]
   )
 
   const onPaneClick = useCallback(() => {
@@ -952,6 +996,15 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
               <Controls />
             </ReactFlow>
           </div>
+          {/* Chat in node selection mode banner */}
+          {isChatInNodeMode && (
+            <div className="chat-in-node-banner">
+              <span>Click a draft node to add context</span>
+              <button type="button" onClick={handleCancelChatInNodeMode}>
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="graph-toolbar">
             <button
               type="button"
@@ -1038,6 +1091,15 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           >
             <span className="qa-selection-dropdown-item-icon">?</span>
             Ask about
+          </button>
+          <button
+            type="button"
+            className={`qa-selection-dropdown-item${drafts.length === 0 ? ' disabled' : ''}`}
+            onClick={handleChatInNodeSelection}
+            disabled={drafts.length === 0}
+          >
+            <span className="qa-selection-dropdown-item-icon">💬</span>
+            Chat in node...
           </button>
           <button
             type="button"

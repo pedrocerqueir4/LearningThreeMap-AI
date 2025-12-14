@@ -21,6 +21,18 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
 
     const isDraft = data.mode === 'draft'
 
+    // Pre-populate draft with context text (truncated + highlighted format)
+    const [hasInitializedContext, setHasInitializedContext] = useState(false)
+
+    // Initialize draft with context text when component mounts with context
+    if (isDraft && data.contextText && !hasInitializedContext && draft === '') {
+        const truncatedContext = data.contextText.length > 15
+            ? data.contextText.substring(0, 15) + '...'
+            : data.contextText
+        setDraft(`"${truncatedContext}" `)
+        setHasInitializedContext(true)
+    }
+
     const handleSend = async () => {
         const text = draft.trim()
         if (!isDraft || !text || sending) return
@@ -33,6 +45,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                     : data.anchorNodeId
                         ? [data.anchorNodeId]
                         : []
+            // Send the draft content directly (it already includes context)
             await data.onSend(effectiveFromNodeIds.length ? effectiveFromNodeIds : null, text, data.id)
             setDraft('')
         } catch (err) {

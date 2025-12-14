@@ -12,13 +12,14 @@ export function useDraftNodes(conversationId: string) {
         setDrafts([])
     }, [conversationId])
 
-    const createDraft = useCallback((anchorNodeId: string | null, fromNodeIds: string[]) => {
+    const createDraft = useCallback((anchorNodeId: string | null, fromNodeIds: string[], contextText?: string | null) => {
         setDrafts((current) => [
             ...current,
             {
                 id: crypto.randomUUID(),
                 anchorNodeId,
                 fromNodeIds,
+                contextText: contextText ?? null,
             },
         ])
     }, [])
@@ -42,11 +43,18 @@ export function useDraftNodes(conversationId: string) {
         setDrafts((current) => current.filter((d) => !anchorIds.includes(d.anchorNodeId ?? d.id)))
     }, [])
 
+    const updateDraftContextText = useCallback((draftId: string, contextText: string) => {
+        setDrafts((current) =>
+            current.map((d) => d.id === draftId ? { ...d, contextText } : d)
+        )
+    }, [])
+
     return {
         drafts,
         createDraft,
         createDraftBelow,
         removeDraft,
         removeDraftsByAnchorIds,
+        updateDraftContextText,
     }
 }
