@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import './App.css'
+import './styles/index.css'
 import type { Conversation } from './store/conversations'
 import { useConversationStore } from './store/conversations'
 import { useGraphStore } from './store/graph'

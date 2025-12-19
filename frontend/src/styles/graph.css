@@ -1,0 +1,266 @@
+/* ==========================================================================
+   CONVERSATION GRAPH COMPONENT
+   Graph container, flow, chat mode, navigation, and toolbar
+   ========================================================================== */
+
+/* Graph Container */
+.roadmap-graph {
+    grid-area: roadmap;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    overflow: hidden;
+    margin: 0;
+    background: transparent;
+    border: none;
+}
+
+.roadmap-graph>* {
+    flex: 1;
+}
+
+.graph-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.graph-flow {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* React Flow Cursor Modes */
+.react-flow__pane.ask-mode {
+    cursor: help;
+}
+
+.react-flow__pane.delete-mode {
+    cursor: not-allowed;
+}
+
+/* Expanded Chat Mode */
+.graph-expanded-chat {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.5rem 1.75rem;
+    animation: graph-chat-in 0.18s ease-out;
+}
+
+.graph-expanded-chat-header {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1rem;
+}
+
+.graph-expanded-close-button {
+    border-radius: 9999px;
+    padding: 0.4rem 0.9rem;
+    background-color: #111827;
+    color: #f9fafb;
+    border: none;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.graph-expanded-chat-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding-right: 0.75rem;
+}
+
+.graph-expanded-chat-item {
+    max-width: min(960px, 100% - 4rem);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    animation: graph-chat-item-transition 0.3s ease-out;
+}
+
+.graph-expanded-chat-item .qa-bubble--user {
+    font-size: 0.95rem;
+    padding: 0.6rem 0.9rem;
+}
+
+.graph-expanded-chat-item .qa-bubble--ai {
+    font-size: 0.9rem;
+}
+
+.graph-expanded-chat-item .qa-bubble-row {
+    position: relative;
+}
+
+.graph-expanded-chat-item .qa-node-edit-icon {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.graph-expanded-chat-item:hover .qa-node-edit-icon {
+    opacity: 1;
+}
+
+/* Animations */
+@keyframes graph-chat-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes graph-chat-item-transition {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Navigation Dots */
+.graph-nav-dots-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+}
+
+.graph-nav-dots-container--top {
+    margin-bottom: 0.5rem;
+}
+
+.graph-nav-dots-container--bottom {
+    margin-top: 0.5rem;
+}
+
+.graph-nav-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: none;
+    background-color: #111827;
+    display: flex;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.graph-nav-dot:hover {
+    background-color: #1f2937;
+    transform: scale(1.2);
+}
+
+.graph-nav-dot:active {
+    transform: scale(1);
+}
+
+/* Graph Toolbar */
+.graph-toolbar {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    padding: 0.4rem 0.9rem;
+    border-radius: 9999px;
+    background-color: rgba(17, 24, 39, 0.96);
+    box-shadow: 0 12px 25px rgba(15, 23, 42, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.graph-toolbar-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 9999px;
+    background: transparent;
+    color: #f9fafb;
+    border: none;
+    padding: 0.1rem 0.25rem;
+    font-size: 0.8rem;
+}
+
+.graph-toolbar-button-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 9999px;
+    background-color: #1f2937;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.graph-toolbar-button-label {
+    white-space: nowrap;
+}
+
+.graph-toolbar-button--active {
+    background-color: rgba(249, 250, 251, 0.12);
+}
+
+/* Chat in Node Banner */
+.chat-in-node-banner {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    background-color: rgba(17, 24, 39, 0.95);
+    color: #f9fafb;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.chat-in-node-banner button {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #f9fafb;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.chat-in-node-banner button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark Mode */
+:root[data-theme='dark'] .graph-nav-dot {
+    background-color: #3f3f46;
+    color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .graph-nav-dot:hover {
+    background-color: #52525b;
+}

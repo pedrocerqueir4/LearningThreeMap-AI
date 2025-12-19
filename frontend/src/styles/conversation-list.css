@@ -1,0 +1,209 @@
+/* ==========================================================================
+   CONVERSATION LIST COMPONENT
+   Conversation list, items, menu, and interactions
+   ========================================================================== */
+
+/* Conversation List */
+.conversation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+    transition: scrollbar-color 0.4s ease;
+}
+
+.conversation-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.conversation-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.conversation-list::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 9999px;
+}
+
+/* Conversation Item */
+.conversation-item {
+    padding: 0.65rem 0.7rem;
+    border-radius: 0.65rem;
+    background-color: #18181b;
+    border: 1px solid #27272f;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    position: relative;
+    transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+.conversation-item--active {
+    background-color: #27272f;
+    border-color: #4b5563;
+    transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+.conversation-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.conversation-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.conversation-title:hover {
+    opacity: 0.8;
+}
+
+.conversation-title-input {
+    font-size: 0.85rem;
+    font-weight: 500;
+    width: 100%;
+    padding: 0.25rem 0.35rem;
+    border: 1px solid #4b5563;
+    border-radius: 0.35rem;
+    background-color: #27272f;
+    color: #e5e7eb;
+    font-family: inherit;
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+}
+
+.conversation-title-input:focus {
+    outline: none;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.1);
+}
+
+.conversation-meta {
+    font-size: 0.7rem;
+    color: #9ca3af;
+}
+
+.conversation-empty {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+/* Conversation Actions & Menu */
+.conversation-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.conversation-menu-button {
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    line-height: 1;
+    transition: color 0.4s ease;
+}
+
+.conversation-menu-button:hover,
+.conversation-menu-button:focus-visible {
+    color: #f9fafb;
+}
+
+.conversation-menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    background-color: #1f1f24;
+    border: 1px solid #2e2e36;
+    border-radius: 0.5rem;
+    min-width: 150px;
+    padding: 0.25rem;
+    z-index: 5;
+    transition: background-color 0.4s ease, border-color 0.4s ease;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.conversation-menu-item,
+.conversation-menu-item-delete {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    justify-content: flex-start;
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.4rem;
+    font-size: 0.8rem;
+}
+
+.conversation-menu-item:hover {
+    background-color: rgba(65, 65, 65, 0.2);
+}
+
+.conversation-menu-item-delete:hover {
+    color: rgba(199, 0, 0, 0.637);
+    background-color: rgba(102, 50, 50, 0.2);
+}
+
+/* Dark Mode */
+:root[data-theme='dark'] .conversation-item {
+    background-color: #18181b;
+    border-color: #27272f;
+    color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .conversation-item--active {
+    background-color: #27272f;
+    border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .conversation-title {
+    color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .conversation-meta {
+    color: #9ca3af;
+}
+
+:root[data-theme='dark'] .conversation-title-input {
+    background-color: #27272f;
+    color: #e5e7eb;
+    border-color: #4b5563;
+}
+
+:root[data-theme='dark'] .conversation-title-input:focus {
+    border-color: #60a5fa;
+}
+
+:root[data-theme='dark'] .conversation-menu-button {
+    color: #9ca3af;
+}
+
+:root[data-theme='dark'] .conversation-menu-button:hover {
+    color: #f9fafb;
+}
+
+:root[data-theme='dark'] .conversation-menu {
+    background-color: #1f1f24;
+    border-color: #2e2e36;
+}
