@@ -79,7 +79,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   const { updateNodePositions, fetchGraph } = useGraphStore()
 
-  const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds, updateDraftContextText } = useDraftNodes(conversationId)
+  const { drafts, createDraft, createDraftBelow, removeDraft, removeDraftsByAnchorIds, addDraftContext } = useDraftNodes(conversationId)
   const { selectionMode, selectedAnchorNodeIds, setSelectionMode, toggleNodeSelection, clearSelection } =
     useSelectionMode(conversationId)
   const chatEdit = useEditMode()
@@ -298,7 +298,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
           aiText: null,
           anchorNodeId: draft.anchorNodeId,
           fromNodeIds: draft.fromNodeIds,
-          contextText: draft.contextText,
+          pendingContexts: draft.pendingContexts,
           onSend: handleSendFromDraft,
           onCreateDraftBelow: createDraftBelow,
           onEdit: handleEditNode,
@@ -408,12 +408,12 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   const handleDraftClickForContext = useCallback(
     (draftId: string) => {
       if (isChatInNodeMode && pendingContextText) {
-        updateDraftContextText(draftId, pendingContextText)
+        addDraftContext(draftId, pendingContextText)
         setIsChatInNodeMode(false)
         setPendingContextText(null)
       }
     },
-    [isChatInNodeMode, pendingContextText, updateDraftContextText]
+    [isChatInNodeMode, pendingContextText, addDraftContext]
   )
 
   // Cancel chat-in-node mode

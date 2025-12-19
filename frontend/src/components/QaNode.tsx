@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { NodeProps } from 'reactflow'
 import { Handle, Position } from 'reactflow'
 import ReactMarkdown from 'react-markdown'
@@ -10,7 +10,6 @@ import type { QaNodeData } from '../types'
  * Handles both draft mode (for new questions) and complete mode (existing Q&A pairs)
  */
 export function QaNode({ data }: NodeProps<QaNodeData>) {
-    const [draft, setDraft] = useState('')
     const [sending, setSending] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -21,20 +20,84 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
 
     const isDraft = data.mode === 'draft'
 
-    // Pre-populate draft with context text (truncated + highlighted format)
-    const [hasInitializedContext, setHasInitializedContext] = useState(false)
+    // Content reference for the contentEditable element
+    const contentRef = useRef<HTMLDivElement>(null)
+    const [processedContextIds, setProcessedContextIds] = useState<Set<string>>(new Set())
 
-    // Initialize draft with context text when component mounts with context
-    if (isDraft && data.contextText && !hasInitializedContext && draft === '') {
-        const truncatedContext = data.contextText.length > 15
-            ? data.contextText.substring(0, 15) + '...'
-            : data.contextText
-        setDraft(`"${truncatedContext}" `)
-        setHasInitializedContext(true)
+    // Handle new pending contexts
+    useEffect(() => {
+        if (!isDraft || !data.pendingContexts || !contentRef.current) return
+
+        const newContexts = data.pendingContexts.filter(c => !processedContextIds.has(c.id))
+        if (newContexts.length === 0) return
+
+        // Mark as processed immediately to avoid double insertion
+        setProcessedContextIds(prev => {
+            const next = new Set(prev)
+            newContexts.forEach(c => next.add(c.id))
+            return next
+        })
+
+        // Insert blocks
+        const selection = window.getSelection()
+        let range: Range | null = null
+        if (selection && selection.rangeCount > 0 && contentRef.current.contains(selection.anchorNode)) {
+            range = selection.getRangeAt(0)
+        } else {
+            // Default to end if no selection in our element
+            range = document.createRange()
+            range.selectNodeContents(contentRef.current)
+            range.collapse(false)
+        }
+
+        newContexts.forEach(context => {
+            const span = document.createElement('span')
+            span.contentEditable = 'false'
+            span.className = 'qa-context-block'
+            span.dataset.contextText = context.text
+            const displayText = context.text.length > 20 ? context.text.substring(0, 20) + '...' : context.text
+            span.innerText = ` "${displayText}" `
+
+            // Add a space after
+            const space = document.createTextNode('\u00A0')
+
+            range?.insertNode(space)
+            range?.insertNode(span)
+            // Move cursor after
+            range?.setStartAfter(space)
+            range?.setEndAfter(space)
+        })
+
+        // Restore focus
+        if (contentRef.current) {
+            contentRef.current.focus()
+            if (range) {
+                selection?.removeAllRanges()
+                selection?.addRange(range)
+            }
+        }
+    }, [data.pendingContexts, isDraft, processedContextIds])
+
+    const serializeContent = () => {
+        if (!contentRef.current) return ''
+        let text = ''
+        contentRef.current.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                text += node.textContent
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as HTMLElement
+                if (el.dataset.contextText) {
+                    text += el.dataset.contextText
+                } else {
+                    text += el.innerText
+                }
+            }
+        })
+        return text.trim()
     }
 
     const handleSend = async () => {
-        const text = draft.trim()
+        const text = serializeContent()
         if (!isDraft || !text || sending) return
         setSending(true)
         setError(null)
@@ -45,9 +108,9 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                     : data.anchorNodeId
                         ? [data.anchorNodeId]
                         : []
-            // Send the draft content directly (it already includes context)
+
             await data.onSend(effectiveFromNodeIds.length ? effectiveFromNodeIds : null, text, data.id)
-            setDraft('')
+            if (contentRef.current) contentRef.current.innerText = ''
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to send message')
         } finally {
@@ -94,21 +157,23 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                 <>
                     {error && <div className="qa-node-error">{error}</div>}
                     <div className="qa-node-input-only">
-                        <input
-                            className="qa-node-input qa-node-input--single"
-                            placeholder="Ask a question..."
-                            value={draft}
-                            onChange={(e) => setDraft(e.target.value.slice(0, 500))}
+                        <div
+                            ref={contentRef}
+                            className="qa-node-input qa-node-input--single qa-node-input--content-editable nodrag"
+                            contentEditable={!sending}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey && draft.trim()) {
+                                if (e.key === 'Enter' && !e.shiftKey) {
                                     e.preventDefault()
                                     handleSend()
                                 }
                             }}
+                            onPaste={(e) => {
+                                e.preventDefault()
+                                const text = e.clipboardData.getData('text/plain')
+                                document.execCommand('insertText', false, text)
+                            }}
                             onClick={(e) => e.stopPropagation()}
                             onDoubleClick={(e) => e.stopPropagation()}
-                            disabled={sending}
-                            maxLength={500}
                         />
                         <button
                             className="qa-node-send-button"
@@ -117,7 +182,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                 handleSend()
                             }}
                             onDoubleClick={(e) => e.stopPropagation()}
-                            disabled={sending || !draft.trim()}
+                            disabled={sending}
                             type="button"
                             title={sending ? 'Sending...' : 'Send message'}
                         >

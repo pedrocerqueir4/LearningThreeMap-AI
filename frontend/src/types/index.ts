@@ -25,8 +25,8 @@ export type QaNodeData = {
     isLocked?: boolean
     onToggleLockMode?: () => void
     onTextSelected?: (text: string, nodeId: string) => void
-    // Context text for draft nodes (selected text to display highlighted)
-    contextText?: string | null
+    // Context blocks to be added to the input
+    pendingContexts?: Array<{ id: string, text: string }>
 }
 
 
@@ -37,7 +37,7 @@ export type DraftNode = {
     id: string
     anchorNodeId: string | null
     fromNodeIds: string[]
-    contextText?: string | null  // Selected text to display highlighted
+    pendingContexts?: Array<{ id: string, text: string }>
 }
 
 /**

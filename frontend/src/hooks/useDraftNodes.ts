@@ -19,7 +19,7 @@ export function useDraftNodes(conversationId: string) {
                 id: crypto.randomUUID(),
                 anchorNodeId,
                 fromNodeIds,
-                contextText: contextText ?? null,
+                pendingContexts: contextText ? [{ id: crypto.randomUUID(), text: contextText }] : [],
             },
         ])
     }, [])
@@ -31,6 +31,7 @@ export function useDraftNodes(conversationId: string) {
                 id: crypto.randomUUID(),
                 anchorNodeId: anchorNodeId ?? nodeId,
                 fromNodeIds: [anchorNodeId ?? nodeId],
+                pendingContexts: [],
             },
         ])
     }, [])
@@ -43,9 +44,16 @@ export function useDraftNodes(conversationId: string) {
         setDrafts((current) => current.filter((d) => !anchorIds.includes(d.anchorNodeId ?? d.id)))
     }, [])
 
-    const updateDraftContextText = useCallback((draftId: string, contextText: string) => {
+    const addDraftContext = useCallback((draftId: string, contextText: string) => {
         setDrafts((current) =>
-            current.map((d) => d.id === draftId ? { ...d, contextText } : d)
+            current.map((d) =>
+                d.id === draftId
+                    ? {
+                        ...d,
+                        pendingContexts: [...(d.pendingContexts || []), { id: crypto.randomUUID(), text: contextText }],
+                    }
+                    : d
+            )
         )
     }, [])
 
@@ -55,6 +63,6 @@ export function useDraftNodes(conversationId: string) {
         createDraftBelow,
         removeDraft,
         removeDraftsByAnchorIds,
-        updateDraftContextText,
+        addDraftContext,
     }
 }
