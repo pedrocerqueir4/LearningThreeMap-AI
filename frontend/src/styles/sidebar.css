@@ -5,8 +5,8 @@
 
 /* Sidebar Container */
 .sidebar {
-    background-color: #18181b;
-    color: #e5e7eb;
+    background-color: var(--color-sidebar-bg, #18181b);
+    color: var(--color-sidebar-text, #e5e7eb);
     padding: 1.5rem 1.25rem;
     display: flex;
     flex-direction: column;
@@ -43,6 +43,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+    min-height: 2.5rem;
 }
 
 .app-title {
@@ -50,6 +51,16 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Sidebar buttons container */
+.sidebar-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 /* Sidebar Toggle Button */
@@ -58,8 +69,8 @@
     height: 2rem;
     border-radius: 0.75rem;
     border: 1px solid #27272f;
-    background-color: #18181b;
-    color: #e5e7eb;
+    background-color: var(--color-sidebar-bg, #18181b);
+    color: var(--color-sidebar-text, #e5e7eb);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -72,6 +83,27 @@
     background-color: #3f3f46;
 }
 
+/* Settings Button */
+.settings-button {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.75rem;
+    border: 1px solid #27272f;
+    background-color: var(--color-sidebar-bg, #18181b);
+    color: var(--color-sidebar-text, #e5e7eb);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.35s ease-in-out, background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    padding: 0;
+}
+
+.settings-button:hover {
+    background-color: #3f3f46;
+}
+
 /* Primary Button */
 .primary-button {
     align-self: stretch;
@@ -79,14 +111,14 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    background-color: #27272f;
-    color: #e5e7eb;
-    border-color: #3f3f46;
+    background-color: var(--color-button-primary, #27272f);
+    color: #f9fafb;
+    border-color: var(--color-button-primary, #3f3f46);
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
 }
 
 .primary-button:hover {
-    background-color: #3f3f46;
+    background-color: var(--color-button-primary-hover, #3f3f46);
 }
 
 .primary-button-icon {
@@ -111,20 +143,4 @@
     background-color: #7f1d1d;
     color: #fee2e2;
     transition: background-color 0.4s ease, color 0.4s ease;
-}
-
-/* Dark Mode */
-:root[data-theme='dark'] .sidebar {
-    background-color: #18181b;
-    border-right: 1px solid #27272f;
-}
-
-:root[data-theme='dark'] .primary-button {
-    background-color: #27272f;
-    color: #e5e7eb;
-    border-color: #3f3f46;
-}
-
-:root[data-theme='dark'] .primary-button:hover {
-    background-color: #3f3f46;
 }

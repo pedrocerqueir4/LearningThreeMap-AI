@@ -37,8 +37,8 @@
 .conversation-item {
     padding: 0.65rem 0.7rem;
     border-radius: 0.65rem;
-    background-color: #18181b;
-    border: 1px solid #27272f;
+    background-color: var(--color-conversation-item, #18181b);
+    border: 1px solid var(--color-conversation-item-border, #27272f);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -48,8 +48,8 @@
 }
 
 .conversation-item--active {
-    background-color: #27272f;
-    border-color: #4b5563;
+    background-color: var(--color-conversation-item-active, #27272f);
+    border-color: var(--color-accent, #4b5563);
     transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
@@ -134,8 +134,8 @@
     position: absolute;
     top: calc(100% + 0.35rem);
     right: 0;
-    background-color: #1f1f24;
-    border: 1px solid #2e2e36;
+    background-color: var(--color-conversation-item, #1f1f24);
+    border: 1px solid var(--color-conversation-item-border, #2e2e36);
     border-radius: 0.5rem;
     min-width: 150px;
     padding: 0.25rem;

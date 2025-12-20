@@ -1,0 +1,208 @@
+/* ==========================================================================
+   SETTINGS MODAL
+   Settings modal with color theme selection
+   ========================================================================== */
+
+.settings-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.settings-modal-content {
+    background-color: var(--color-sidebar-bg, #18181b);
+    color: var(--color-sidebar-text, #e5e7eb);
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.3s ease-out;
+}
+
+.settings-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.settings-modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.settings-modal-close {
+    background: none;
+    border: none;
+    color: var(--color-sidebar-text, #e5e7eb);
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s ease;
+    padding: 0;
+}
+
+.settings-modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-modal-body {
+    padding: 1.5rem;
+}
+
+.setting-section {
+    margin-bottom: 2rem;
+}
+
+.setting-section:last-child {
+    margin-bottom: 0;
+}
+
+.setting-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.9;
+}
+
+.theme-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.theme-option {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--color-sidebar-text, #e5e7eb);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.theme-option:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.theme-option--active {
+    border-color: var(--color-accent, #8b5cf6);
+    background-color: rgba(139, 92, 246, 0.1);
+}
+
+.theme-option-color {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.theme-option--purple .theme-option-color {
+    background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+}
+
+.theme-option--ocean .theme-option-color {
+    background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
+}
+
+.theme-option--forest .theme-option-color {
+    background: linear-gradient(135deg, #22c55e 0%, #4ade80 100%);
+}
+
+.theme-option--sunset .theme-option-color {
+    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+}
+
+.dark-mode-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 3rem;
+    height: 1.5rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-switch--active {
+    background-color: var(--color-accent, #8b5cf6);
+}
+
+.toggle-switch-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+.toggle-switch--active .toggle-switch-slider {
+    transform: translateX(1.5rem);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

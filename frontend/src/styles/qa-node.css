@@ -8,8 +8,8 @@
     min-width: 260px;
     max-width: 840px;
     border-radius: 1.25rem;
-    border: 2px solid #111827;
-    background-color: #fefcf7;
+    border: 2px solid var(--color-node-border, #111827);
+    background-color: var(--color-node-bg, #fefcf7);
     padding: 0.9rem 1rem;
     box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
     position: relative;
@@ -46,14 +46,15 @@
 
 .qa-bubble--user {
     align-self: flex-start;
-    background-color: #111827;
-    color: #f9fafb;
+    background-color: var(--color-node-user, #111827);
+    color: var(--color-node-user-text, #f9fafb);
     transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 .qa-bubble--ai {
     align-self: flex-start;
-    background-color: #e5e7eb;
+    background-color: var(--color-node-ai, #e5e7eb);
+    color: var(--color-node-ai-text, #111827);
     transition: background-color 0.4s ease, color 0.4s ease;
 }
 
@@ -119,7 +120,7 @@
 .qa-node-send-button {
     border-radius: 9999px;
     padding: 0.55rem 1.2rem;
-    background-color: #6b7280;
+    background-color: var(--color-button-primary, #6b7280);
     color: #f9fafb;
     border: none;
     display: inline-flex;
@@ -127,6 +128,10 @@
     gap: 0.35rem;
     font-size: 0.8rem;
     transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+.qa-node-send-button:hover:not(:disabled) {
+    background-color: var(--color-button-primary-hover, #4b5563);
 }
 
 .qa-node-send-button:disabled {
@@ -161,7 +166,7 @@
     height: 18px;
     border-radius: 50%;
     border: none;
-    background-color: #111827;
+    background-color: var(--color-button-primary, #111827);
     color: #f9fafb;
     display: flex;
     align-items: center;
@@ -170,6 +175,10 @@
     font-weight: bold;
     cursor: pointer;
     padding: 0;
+}
+
+.qa-node-dot:hover {
+    background-color: var(--color-button-primary-hover, #374151);
 }
 
 .qa-node-dot:active {

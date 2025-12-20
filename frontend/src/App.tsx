@@ -25,7 +25,7 @@ function App() {
 
   const { sendMessage } = useMessageStore()
 
-  const { mode, setMode } = useThemeStore()
+  const { mode, setMode, colorTheme, setColorTheme } = useThemeStore()
 
   const [menuConversationId, setMenuConversationId] = useState<string | null>(null)
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
@@ -34,6 +34,7 @@ function App() {
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false)
   const [agentInstruction, setAgentInstruction] = useState('')
   const [agentConversationId, setAgentConversationId] = useState<string | null>(null)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
 
   useEffect(() => {
     fetchConversations()
@@ -150,15 +151,26 @@ function App() {
         <div className="sidebar-header">
           <div className="sidebar-header-top">
             {!isSidebarCollapsed && <h1 className="app-title">LearningThreeMap</h1>}
-            <button
-              type="button"
-              className="sidebar-toggle-button"
-              onClick={() => setIsSidebarCollapsed((value) => !value)}
-              aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={isSidebarCollapsed ? 'Show conversations' : 'Hide conversations'}
-            >
-              {isSidebarCollapsed ? '»' : '«'}
-            </button>
+            <div className="sidebar-buttons">
+              <button
+                type="button"
+                className="settings-button"
+                onClick={() => setIsSettingsModalOpen(true)}
+                aria-label="Settings"
+                title="Settings"
+              >
+                ⚙️
+              </button>
+              <button
+                type="button"
+                className="sidebar-toggle-button"
+                onClick={() => setIsSidebarCollapsed((value) => !value)}
+                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={isSidebarCollapsed ? 'Show conversations' : 'Hide conversations'}
+              >
+                {isSidebarCollapsed ? '»' : '«'}
+              </button>
+            </div>
           </div>
           {!isSidebarCollapsed && (
             <button className="primary-button" onClick={handleNewConversation} disabled={loading}>
@@ -312,6 +324,77 @@ function App() {
                 <button className="primary-button" onClick={handleSaveAgent}>
                   Confirm
                 </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+      {
+        isSettingsModalOpen && (
+          <div className="settings-modal-overlay" onClick={() => setIsSettingsModalOpen(false)}>
+            <div className="settings-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="settings-modal-header">
+                <h2>Settings</h2>
+                <button
+                  className="settings-modal-close"
+                  onClick={() => setIsSettingsModalOpen(false)}
+                  aria-label="Close settings"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="settings-modal-body">
+                <div className="setting-section">
+                  <label className="setting-label">Color Theme</label>
+                  <div className="theme-options">
+                    <button
+                      className={`theme-option theme-option--purple ${colorTheme === 'purple' ? 'theme-option--active' : ''}`}
+                      onClick={() => setColorTheme('purple')}
+                    >
+                      <span className="theme-option-color" />
+                      Purple
+                    </button>
+                    <button
+                      className={`theme-option theme-option--ocean ${colorTheme === 'ocean' ? 'theme-option--active' : ''}`}
+                      onClick={() => setColorTheme('ocean')}
+                    >
+                      <span className="theme-option-color" />
+                      Ocean
+                    </button>
+                    <button
+                      className={`theme-option theme-option--forest ${colorTheme === 'forest' ? 'theme-option--active' : ''}`}
+                      onClick={() => setColorTheme('forest')}
+                    >
+                      <span className="theme-option-color" />
+                      Forest
+                    </button>
+                    <button
+                      className={`theme-option theme-option--sunset ${colorTheme === 'sunset' ? 'theme-option--active' : ''}`}
+                      onClick={() => setColorTheme('sunset')}
+                    >
+                      <span className="theme-option-color" />
+                      Sunset
+                    </button>
+                  </div>
+                </div>
+                <div className="setting-section">
+                  <label className="setting-label">Appearance</label>
+                  <div className="dark-mode-toggle">
+                    <div className="dark-mode-label">
+                      <span>{mode === 'light' ? '☀️' : '🌙'}</span>
+                      <span>Dark Mode</span>
+                    </div>
+                    <div
+                      className={`toggle-switch ${mode === 'dark' ? 'toggle-switch--active' : ''}`}
+                      onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
+                      role="switch"
+                      aria-checked={mode === 'dark'}
+                      tabIndex={0}
+                    >
+                      <div className="toggle-switch-slider" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

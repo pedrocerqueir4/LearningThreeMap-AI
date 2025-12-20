@@ -104,14 +104,15 @@
 }
 
 .delete-modal {
-    background-color: #18181b;
+    background-color: var(--color-sidebar-bg, #18181b);
     border-radius: 0.75rem;
     padding: 1.25rem 1.5rem;
     max-width: 380px;
     width: 100%;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
-    color: #e5e7eb;
-    transition: background-color 0.4s ease, color 0.4s ease;
+    color: var(--color-sidebar-text, #e5e7eb);
+    border: 1px solid var(--color-conversation-item-border, #27272f);
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
 }
 
 .delete-modal-title {
@@ -142,8 +143,13 @@
 }
 
 .delete-modal-button--secondary {
-    background-color: #27272f;
-    color: #e5e7eb;
+    background-color: var(--color-button-primary, #27272f);
+    color: #f9fafb;
+    transition: background-color 0.3s ease;
+}
+
+.delete-modal-button--secondary:hover {
+    background-color: var(--color-button-primary-hover, #3f3f46);
 }
 
 .delete-modal-button--danger {
@@ -154,8 +160,8 @@
 /* Selection Dropdown */
 .qa-selection-dropdown {
     position: fixed;
-    background: #fefcf7;
-    border: 1.5px solid #111827;
+    background: var(--color-node-bg, #fefcf7);
+    border: 1.5px solid var(--color-node-border, #111827);
     border-radius: 0.75rem;
     padding: 0.5rem;
     min-width: 160px;
@@ -165,6 +171,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 @keyframes dropdown-in {

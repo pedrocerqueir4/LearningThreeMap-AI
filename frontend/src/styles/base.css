@@ -10,12 +10,187 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color-scheme: light;
     transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-:root[data-theme='dark'] {
-    color-scheme: dark;
+/* Purple Theme (Default) - Light Mode */
+:root[data-color-theme='purple'] {
+    --color-bg-main: #f5f2ec;
+    --color-text-main: #111827;
+    --color-canvas-bg: #f5f2ec;
+    --color-sidebar-bg: #18181b;
+    --color-sidebar-text: #e5e7eb;
+    --color-accent: #7c3aed;
+    --color-accent-hover: #6d28d9;
+    --color-node-bg: #fefcf7;
+    --color-node-border: #7c3aed;
+    --color-node-user: #7c3aed;
+    --color-node-user-text: #f9fafb;
+    --color-node-ai: #d1d5db;
+    --color-node-ai-text: #111827;
+    --color-button-primary: #7c3aed;
+    --color-button-primary-hover: #6d28d9;
+    --color-edge: #7c3aed;
+    --color-conversation-item: #252530;
+    --color-conversation-item-active: #34344a;
+    --color-conversation-item-border: #3f3f46;
+}
+
+:root[data-color-theme='purple'][data-theme='dark'] {
+    --color-bg-main: #1a1a1a;
+    --color-text-main: #e5e7eb;
+    --color-canvas-bg: #1a1a1a;
+    --color-sidebar-bg: #0f0f10;
+    --color-sidebar-text: #e5e7eb;
+    --color-accent: #8b5cf6;
+    --color-accent-hover: #7c3aed;
+    --color-node-bg: #27272f;
+    --color-node-border: #8b5cf6;
+    --color-node-user: #8b5cf6;
+    --color-node-user-text: #0a0a0f;
+    --color-node-ai: #1f1f28;
+    --color-node-ai-text: #e5e7eb;
+    --color-button-primary: #8b5cf6;
+    --color-button-primary-hover: #7c3aed;
+    --color-edge: #8b5cf6;
+    --color-conversation-item: #18181b;
+    --color-conversation-item-active: #27272f;
+    --color-conversation-item-border: #27272f;
+}
+
+/* Ocean Theme - Light Mode */
+:root[data-color-theme='ocean'] {
+    --color-bg-main: #f0f9ff;
+    --color-text-main: #0c4a6e;
+    --color-canvas-bg: #f0f9ff;
+    --color-sidebar-bg: #0c4a6e;
+    --color-sidebar-text: #e0f2fe;
+    --color-accent: #0284c7;
+    --color-accent-hover: #0369a1;
+    --color-node-bg: #fffeff;
+    --color-node-border: #0284c7;
+    --color-node-user: #0284c7;
+    --color-node-user-text: #f9fafb;
+    --color-node-ai: #bae6fd;
+    --color-node-ai-text: #0c4a6e;
+    --color-button-primary: #0284c7;
+    --color-button-primary-hover: #0369a1;
+    --color-edge: #0284c7;
+    --color-conversation-item: #0a3d5c;
+    --color-conversation-item-active: #0c4a6e;
+    --color-conversation-item-border: #075985;
+}
+
+:root[data-color-theme='ocean'][data-theme='dark'] {
+    --color-bg-main: #082f49;
+    --color-text-main: #e0f2fe;
+    --color-canvas-bg: #082f49;
+    --color-sidebar-bg: #0c1e2e;
+    --color-sidebar-text: #e0f2fe;
+    --color-accent: #0ea5e9;
+    --color-accent-hover: #0284c7;
+    --color-node-bg: #0c3d5a;
+    --color-node-border: #0ea5e9;
+    --color-node-user: #0ea5e9;
+    --color-node-user-text: #051923;
+    --color-node-ai: #0c2f42;
+    --color-node-ai-text: #e0f2fe;
+    --color-button-primary: #0ea5e9;
+    --color-button-primary-hover: #0284c7;
+    --color-edge: #0ea5e9;
+    --color-conversation-item: #0c1e2e;
+    --color-conversation-item-active: #164e63;
+    --color-conversation-item-border: #075985;
+}
+
+/* Forest Theme - Light Mode */
+:root[data-color-theme='forest'] {
+    --color-bg-main: #f0fdf4;
+    --color-text-main: #14532d;
+    --color-canvas-bg: #f0fdf4;
+    --color-sidebar-bg: #14532d;
+    --color-sidebar-text: #dcfce7;
+    --color-accent: #16a34a;
+    --color-accent-hover: #15803d;
+    --color-node-bg: #fefffe;
+    --color-node-border: #16a34a;
+    --color-node-user: #16a34a;
+    --color-node-user-text: #f9fafb;
+    --color-node-ai: #bbf7d0;
+    --color-node-ai-text: #14532d;
+    --color-button-primary: #16a34a;
+    --color-button-primary-hover: #15803d;
+    --color-edge: #16a34a;
+    --color-conversation-item: #0f3d23;
+    --color-conversation-item-active: #14532d;
+    --color-conversation-item-border: #166534;
+}
+
+:root[data-color-theme='forest'][data-theme='dark'] {
+    --color-bg-main: #052e16;
+    --color-text-main: #dcfce7;
+    --color-canvas-bg: #052e16;
+    --color-sidebar-bg: #0a1f0f;
+    --color-sidebar-text: #dcfce7;
+    --color-accent: #22c55e;
+    --color-accent-hover: #16a34a;
+    --color-node-bg: #0a3d21;
+    --color-node-border: #22c55e;
+    --color-node-user: #22c55e;
+    --color-node-user-text: #051f0d;
+    --color-node-ai: #0a2817;
+    --color-node-ai-text: #dcfce7;
+    --color-button-primary: #22c55e;
+    --color-button-primary-hover: #16a34a;
+    --color-edge: #22c55e;
+    --color-conversation-item: #0a1f0f;
+    --color-conversation-item-active: #14532d;
+    --color-conversation-item-border: #166534;
+}
+
+/* Sunset Theme - Light Mode */
+:root[data-color-theme='sunset'] {
+    --color-bg-main: #fff7ed;
+    --color-text-main: #7c2d12;
+    --color-canvas-bg: #fff7ed;
+    --color-sidebar-bg: #7c2d12;
+    --color-sidebar-text: #fed7aa;
+    --color-accent: #ea580c;
+    --color-accent-hover: #c2410c;
+    --color-node-bg: #fffffe;
+    --color-node-border: #ea580c;
+    --color-node-user: #ea580c;
+    --color-node-user-text: #f9fafb;
+    --color-node-ai: #fdba74;
+    --color-node-ai-text: #7c2d12;
+    --color-button-primary: #ea580c;
+    --color-button-primary-hover: #c2410c;
+    --color-edge: #ea580c;
+    --color-conversation-item: #6b2710;
+    --color-conversation-item-active: #7c2d12;
+    --color-conversation-item-border: #9a3412;
+}
+
+:root[data-color-theme='sunset'][data-theme='dark'] {
+    --color-bg-main: #431407;
+    --color-text-main: #fed7aa;
+    --color-canvas-bg: #431407;
+    --color-sidebar-bg: #2d0a05;
+    --color-sidebar-text: #fed7aa;
+    --color-accent: #f97316;
+    --color-accent-hover: #ea580c;
+    --color-node-bg: #5a1a0a;
+    --color-node-border: #f97316;
+    --color-node-user: #f97316;
+    --color-node-user-text: #1f0803;
+    --color-node-ai: #4a1509;
+    --color-node-ai-text: #fed7aa;
+    --color-button-primary: #f97316;
+    --color-button-primary-hover: #ea580c;
+    --color-edge: #f97316;
+    --color-conversation-item: #2d0a05;
+    --color-conversation-item-active: #5a1a0a;
+    --color-conversation-item-border: #9a3412;
 }
 
 body {
@@ -23,14 +198,9 @@ body {
     min-width: 320px;
     height: 100vh;
     overflow: hidden;
-    background-color: #f5f2ec;
-    color: #111827;
+    background-color: var(--color-bg-main);
+    color: var(--color-text-main);
     transition: background-color 0.4s ease, color 0.4s ease;
-}
-
-:root[data-theme='dark'] body {
-    background-color: #1a1a1a;
-    color: #e5e7eb;
 }
 
 #root {

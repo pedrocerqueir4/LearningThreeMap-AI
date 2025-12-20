@@ -44,6 +44,56 @@
     cursor: not-allowed;
 }
 
+/* React Flow Edges (Connection Lines) */
+.react-flow__edge-path {
+    stroke: var(--color-edge, #111827) !important;
+    stroke-width: 2.5 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+    stroke: var(--color-accent, #6b7280) !important;
+    stroke-width: 3.5 !important;
+}
+
+/* Edge markers (arrows/triangles) */
+.react-flow__arrowhead {
+    fill: var(--color-edge, #111827);
+}
+
+.react-flow__edge.selected .react-flow__arrowhead {
+    fill: var(--color-accent, #6b7280);
+}
+
+/* Connection handles (dots on nodes) */
+.react-flow__handle {
+    background-color: var(--color-edge, #111827) !important;
+    border: 2px solid var(--color-edge, #111827) !important;
+}
+
+.react-flow__handle:hover {
+    background-color: var(--color-accent, #6b7280) !important;
+    border-color: var(--color-accent, #6b7280) !important;
+}
+
+.react-flow__handle.connecting {
+    background-color: var(--color-accent, #6b7280) !important;
+    border-color: var(--color-accent, #6b7280) !important;
+}
+
+/* Additional edge styling for better visibility */
+.react-flow__edge {
+    pointer-events: all;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+    stroke: var(--color-accent, #6b7280) !important;
+    stroke-width: 3 !important;
+}
+
+.react-flow__edge:hover .react-flow__arrowhead {
+    fill: var(--color-accent, #6b7280);
+}
+
 /* Expanded Chat Mode */
 .graph-expanded-chat {
     position: relative;
@@ -63,11 +113,16 @@
 .graph-expanded-close-button {
     border-radius: 9999px;
     padding: 0.4rem 0.9rem;
-    background-color: #111827;
+    background-color: var(--color-button-primary, #111827);
     color: #f9fafb;
     border: none;
     font-size: 0.8rem;
     cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.graph-expanded-close-button:hover {
+    background-color: var(--color-button-primary-hover, #374151);
 }
 
 .graph-expanded-chat-body {
@@ -158,7 +213,7 @@
     height: 14px;
     border-radius: 50%;
     border: none;
-    background-color: #111827;
+    background-color: var(--color-button-primary, #111827);
     display: flex;
     font-size: 1.2rem;
     line-height: 1;
@@ -168,7 +223,7 @@
 }
 
 .graph-nav-dot:hover {
-    background-color: #1f2937;
+    background-color: var(--color-button-primary-hover, #1f2937);
     transform: scale(1.2);
 }
 
