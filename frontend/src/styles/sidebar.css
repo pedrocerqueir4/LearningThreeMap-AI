@@ -3,139 +3,206 @@
    Sidebar navigation, header, and conversation list
    ========================================================================== */
 
-/* Sidebar Container */
+/* ========================================
+   Sidebar Container
+   ======================================== */
+
 .sidebar {
     background-color: var(--color-sidebar-bg, #18181b);
     color: var(--color-sidebar-text, #e5e7eb);
-    padding: 1.5rem 1.25rem;
+    padding: 1rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     height: 100vh;
     overflow: hidden;
     transition: padding 0.35s ease-in-out, background-color 0.4s ease, color 0.4s ease;
 }
 
 .sidebar--collapsed {
-    padding: 1.5rem 0.5rem;
-    align-items: flex-start;
+    padding: 1rem 0.75rem;
 }
 
 .sidebar--collapsed .sidebar-header {
     width: 100%;
 }
 
-.sidebar--collapsed .primary-button,
 .sidebar--collapsed .error-banner,
 .sidebar--collapsed .conversation-list {
     display: none;
 }
 
-/* Sidebar Header */
+/* ========================================
+   Sidebar Header
+   ======================================== */
+
 .sidebar-header {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
 }
 
 .sidebar-header-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    min-height: 2.5rem;
+    min-height: 2rem;
 }
 
 .app-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     flex: 1;
     min-width: 0;
+    transition: all 0.35s ease-in-out;
 }
 
-/* Sidebar buttons container */
-.sidebar-buttons {
+.sidebar--collapsed .app-title {
+    flex: 0;
+    text-align: center;
+}
+
+/* ========================================
+   Sidebar Actions Container
+   ======================================== */
+
+.sidebar-actions {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    width: 100%;
     gap: 0.5rem;
-    flex-shrink: 0;
 }
 
-/* Sidebar Toggle Button */
+/* ========================================
+   Shared Button Styles
+   ======================================== */
+
+/* Base styles shared by all action buttons */
+.primary-button,
+.settings-button,
 .sidebar-toggle-button {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.75rem;
-    border: 1px solid #27272f;
-    background-color: var(--color-sidebar-bg, #18181b);
-    color: var(--color-sidebar-text, #e5e7eb);
+    width: 100%;
+    height: 2.75rem;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.35s ease-in-out, background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    transition: all 0.35s ease-in-out;
+    overflow: hidden;
+    border: 1px solid var(--color-conversation-item-border, #27272f);
 }
 
+/* Secondary buttons (Settings & Toggle) share theseex properties */
+.settings-button,
+.sidebar-toggle-button {
+    background-color: var(--color-sidebar-bg, #18181b);
+    color: var(--color-sidebar-text, #e5e7eb);
+    justify-content: flex-start;
+    font-size: 0.75rem;
+    padding: 0 0.75rem;
+}
+
+.settings-button:hover,
 .sidebar-toggle-button:hover {
     background-color: #3f3f46;
 }
 
-/* Settings Button */
-.settings-button {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.75rem;
-    border: 1px solid #27272f;
-    background-color: var(--color-sidebar-bg, #18181b);
-    color: var(--color-sidebar-text, #e5e7eb);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.35s ease-in-out, background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
-    padding: 0;
-}
-
-.settings-button:hover {
-    background-color: #3f3f46;
-}
-
-/* Primary Button */
+/* Primary button unique styles */
 .primary-button {
-    align-self: stretch;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
     background-color: var(--color-button-primary, #27272f);
     color: #f9fafb;
-    border-color: var(--color-button-primary, #3f3f46);
-    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 0 1rem;
 }
 
 .primary-button:hover {
     background-color: var(--color-button-primary-hover, #3f3f46);
 }
 
-.primary-button-icon {
-    display: inline-flex;
+/* ========================================
+   Button Icons
+   ======================================== */
+
+/* Shared icon styles */
+.primary-button-icon,
+.settings-button-icon,
+.sidebar-toggle-button-icon {
+    display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: all 0.35s ease-in-out;
+}
+
+.primary-button-icon {
     width: 1.25rem;
     height: 1.25rem;
     border-radius: 9999px;
-    background-color: #3f3f46;
-    font-size: 1rem;
+    background-color: transparent;
+    font-size: 1.25rem;
     font-weight: 600;
-    line-height: 1;
-    transition: background-color 0.4s ease;
 }
 
-/* Error Banner */
+.settings-button-icon,
+.sidebar-toggle-button-icon {
+    font-size: 1rem;
+}
+
+.settings-button-icon svg,
+.sidebar-toggle-button-icon svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+    stroke: currentColor;
+}
+
+/* ========================================
+   Button Text
+   ======================================== */
+
+/* Shared text styles */
+.primary-button-text,
+.settings-button-text,
+.sidebar-toggle-button-text {
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* ========================================
+   Collapsed State
+   ======================================== */
+
+/* All buttons become square when collapsed */
+.sidebar--collapsed .primary-button,
+.sidebar--collapsed .settings-button,
+.sidebar--collapsed .sidebar-toggle-button {
+    width: 2.5rem;
+    height: 2.75rem;
+    min-width: 2.5rem;
+    padding: 0;
+    justify-content: center;
+}
+
+/* All button texts fade out when collapsed */
+.sidebar--collapsed .primary-button-text,
+.sidebar--collapsed .settings-button-text,
+.sidebar--collapsed .sidebar-toggle-button-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+/* ========================================
+   Error Banner
+   ======================================== */
+
 .error-banner {
     font-size: 0.75rem;
     padding: 0.5rem 0.75rem;

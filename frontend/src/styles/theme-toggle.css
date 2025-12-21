@@ -12,8 +12,8 @@
     height: 2.5rem;
     padding: 0;
     border-radius: 50%;
-    background-color: #e5e7eb;
-    border: 1px solid #d1d5db;
+    background-color: var(--color-button-secondary, #e5e7eb);
+    border: 1px solid var(--color-edge, #d1d5db);
     font-size: 1.25rem;
     line-height: 1;
     display: flex;
@@ -24,21 +24,10 @@
 }
 
 .theme-toggle-button:hover {
-    background-color: #d1d5db;
+    background-color: var(--color-button-secondary-hover, #d1d5db);
     transform: scale(1.05);
 }
 
 .theme-toggle-button:active {
     transform: scale(0.95);
-}
-
-/* Dark Mode */
-:root[data-theme='dark'] .theme-toggle-button {
-    background-color: #3f3f46;
-    border-color: #52525b;
-    color: #fbbf24;
-}
-
-:root[data-theme='dark'] .theme-toggle-button:hover {
-    background-color: #52525b;
 }

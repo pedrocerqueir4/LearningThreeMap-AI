@@ -67,26 +67,3 @@
     text-align: center;
     padding: 0 1.5rem;
 }
-
-/* Dark Mode */
-:root[data-theme='dark'] .roadmaps-title {
-    color: #e5e7eb;
-}
-
-:root[data-theme='dark'] .roadmaps-underline {
-    background-color: #e5e7eb;
-}
-
-:root[data-theme='dark'] .roadmap-node {
-    background-color: #27272f;
-    border-color: #3f3f46;
-    color: #e5e7eb;
-}
-
-:root[data-theme='dark'] .roadmap-connector {
-    background-color: #3f3f46;
-}
-
-:root[data-theme='dark'] .roadmap-empty {
-    color: #6b7280;
-}

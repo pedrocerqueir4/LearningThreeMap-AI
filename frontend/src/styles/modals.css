@@ -203,19 +203,3 @@
 .qa-selection-dropdown-item.disabled:hover {
     background-color: inherit;
 }
-
-/* Dark Mode */
-:root[data-theme='dark'] .modal-content {
-    background-color: #1f1f24;
-    color: #e5e7eb;
-    border-color: #2e2e36;
-}
-
-:root[data-theme='dark'] .agent-instruction-input {
-    background-color: #27272f;
-    border-color: #3f3f46;
-}
-
-:root[data-theme='dark'] .secondary-button {
-    border-color: #3f3f46;
-}

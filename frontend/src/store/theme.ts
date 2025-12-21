@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 type ThemeMode = 'light' | 'dark'
-type ColorTheme = 'purple' | 'ocean' | 'forest' | 'sunset'
+type ColorTheme = 'cyber' | 'ocean' | 'forest' | 'sunset'
 
 type ThemeState = {
   mode: ThemeMode
@@ -19,7 +19,7 @@ export const useThemeStore = create<ThemeState & ThemeActions>((set) => {
   const savedColorTheme = (typeof localStorage !== 'undefined' ? localStorage.getItem('color-theme') : null) as ColorTheme | null
 
   const initialMode: ThemeMode = savedMode === 'dark' || savedMode === 'light' ? savedMode : 'light'
-  const initialColorTheme: ColorTheme = savedColorTheme === 'purple' || savedColorTheme === 'ocean' || savedColorTheme === 'forest' || savedColorTheme === 'sunset' ? savedColorTheme : 'purple'
+  const initialColorTheme: ColorTheme = savedColorTheme === 'cyber' || savedColorTheme === 'ocean' || savedColorTheme === 'forest' || savedColorTheme === 'sunset' ? savedColorTheme : 'cyber'
 
   // Apply initial theme
   if (typeof document !== 'undefined') {

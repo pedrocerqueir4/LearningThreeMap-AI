@@ -10,7 +10,7 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.3rem;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -35,14 +35,14 @@
 
 /* Conversation Item */
 .conversation-item {
-    padding: 0.65rem 0.7rem;
-    border-radius: 0.65rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 0.5rem;
     background-color: var(--color-conversation-item, #18181b);
     border: 1px solid var(--color-conversation-item-border, #27272f);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0.6rem;
     position: relative;
     transition: background-color 0.4s ease, border-color 0.4s ease;
 }
@@ -61,7 +61,7 @@
 }
 
 .conversation-title {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -74,7 +74,7 @@
 }
 
 .conversation-title-input {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
     width: 100%;
     padding: 0.25rem 0.35rem;
@@ -93,7 +93,7 @@
 }
 
 .conversation-meta {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: #9ca3af;
 }
 
@@ -127,7 +127,7 @@
 
 .conversation-menu-button:hover,
 .conversation-menu-button:focus-visible {
-    color: #f9fafb;
+    color: var(--color-button-primary, #f9fafb);
 }
 
 .conversation-menu {
@@ -163,47 +163,4 @@
 .conversation-menu-item-delete:hover {
     color: rgba(199, 0, 0, 0.637);
     background-color: rgba(102, 50, 50, 0.2);
-}
-
-/* Dark Mode */
-:root[data-theme='dark'] .conversation-item {
-    background-color: #18181b;
-    border-color: #27272f;
-    color: #e5e7eb;
-}
-
-:root[data-theme='dark'] .conversation-item--active {
-    background-color: #27272f;
-    border-color: #4b5563;
-}
-
-:root[data-theme='dark'] .conversation-title {
-    color: #e5e7eb;
-}
-
-:root[data-theme='dark'] .conversation-meta {
-    color: #9ca3af;
-}
-
-:root[data-theme='dark'] .conversation-title-input {
-    background-color: #27272f;
-    color: #e5e7eb;
-    border-color: #4b5563;
-}
-
-:root[data-theme='dark'] .conversation-title-input:focus {
-    border-color: #60a5fa;
-}
-
-:root[data-theme='dark'] .conversation-menu-button {
-    color: #9ca3af;
-}
-
-:root[data-theme='dark'] .conversation-menu-button:hover {
-    color: #f9fafb;
-}
-
-:root[data-theme='dark'] .conversation-menu {
-    background-color: #1f1f24;
-    border-color: #2e2e36;
 }

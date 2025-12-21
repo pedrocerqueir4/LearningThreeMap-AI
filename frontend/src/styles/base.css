@@ -14,183 +14,211 @@
 }
 
 /* Purple Theme (Default) - Light Mode */
-:root[data-color-theme='purple'] {
-    --color-bg-main: #f5f2ec;
+:root[data-color-theme='cyber'] {
+    --color-bg-main: #e6e4df;
     --color-text-main: #111827;
-    --color-canvas-bg: #f5f2ec;
-    --color-sidebar-bg: #18181b;
+    --color-canvas-bg: #e6e4df;
+    --color-sidebar-bg: #2d2a32;
     --color-sidebar-text: #e5e7eb;
     --color-accent: #7c3aed;
     --color-accent-hover: #6d28d9;
-    --color-node-bg: #fefcf7;
+    --color-node-bg: #f8f5ed;
     --color-node-border: #7c3aed;
     --color-node-user: #7c3aed;
     --color-node-user-text: #f9fafb;
-    --color-node-ai: #d1d5db;
+    --color-node-ai: #d4d1e2;
     --color-node-ai-text: #111827;
     --color-button-primary: #7c3aed;
     --color-button-primary-hover: #6d28d9;
+    --color-button-secondary: #a78bfa;
+    --color-button-secondary-hover: #8b5cf6;
     --color-edge: #7c3aed;
-    --color-conversation-item: #252530;
-    --color-conversation-item-active: #34344a;
-    --color-conversation-item-border: #3f3f46;
+    --color-conversation-item: #322b3d;
+    --color-conversation-item-active: #4a3e5c;
+    --color-conversation-item-border: #524b60;
+    --color-background: #e6e4df;
 }
 
-:root[data-color-theme='purple'][data-theme='dark'] {
-    --color-bg-main: #1a1a1a;
-    --color-text-main: #e5e7eb;
-    --color-canvas-bg: #1a1a1a;
-    --color-sidebar-bg: #0f0f10;
-    --color-sidebar-text: #e5e7eb;
+/* Purple Theme - Dark Mode */
+:root[data-color-theme='cyber'][data-theme='dark'] {
+    --color-bg-main: #050208;
+    --color-text-main: #e9d5ff;
+    --color-canvas-bg: #050208;
+    --color-sidebar-bg: #030105;
+    --color-sidebar-text: #e9d5ff;
     --color-accent: #8b5cf6;
     --color-accent-hover: #7c3aed;
-    --color-node-bg: #27272f;
+    --color-node-bg: #100b1a;
     --color-node-border: #8b5cf6;
     --color-node-user: #8b5cf6;
-    --color-node-user-text: #0a0a0f;
-    --color-node-ai: #1f1f28;
-    --color-node-ai-text: #e5e7eb;
+    --color-node-user-text: #050208;
+    --color-node-ai: #161020;
+    --color-node-ai-text: #e9d5ff;
     --color-button-primary: #8b5cf6;
     --color-button-primary-hover: #7c3aed;
+    --color-button-secondary: #c4b5fd;
+    --color-button-secondary-hover: #a78bfa;
     --color-edge: #8b5cf6;
-    --color-conversation-item: #18181b;
-    --color-conversation-item-active: #27272f;
-    --color-conversation-item-border: #27272f;
+    --color-conversation-item: #100820;
+    --color-conversation-item-active: #1e0e38;
+    --color-conversation-item-border: #2d1b50;
+    --color-background: #050208;
 }
 
 /* Ocean Theme - Light Mode */
 :root[data-color-theme='ocean'] {
-    --color-bg-main: #f0f9ff;
+    --color-bg-main: #dbeafe;
     --color-text-main: #0c4a6e;
-    --color-canvas-bg: #f0f9ff;
+    --color-canvas-bg: #dbeafe;
     --color-sidebar-bg: #0c4a6e;
     --color-sidebar-text: #e0f2fe;
-    --color-accent: #0284c7;
-    --color-accent-hover: #0369a1;
-    --color-node-bg: #fffeff;
-    --color-node-border: #0284c7;
-    --color-node-user: #0284c7;
-    --color-node-user-text: #f9fafb;
+    --color-accent: #0369a1;
+    --color-accent-hover: #075985;
+    --color-node-bg: #e8f4fd;
+    --color-node-border: #0369a1;
+    --color-node-user: #0369a1;
+    --color-node-user-text: #f0f9ff;
     --color-node-ai: #bae6fd;
     --color-node-ai-text: #0c4a6e;
-    --color-button-primary: #0284c7;
-    --color-button-primary-hover: #0369a1;
-    --color-edge: #0284c7;
+    --color-button-primary: #0369a1;
+    --color-button-primary-hover: #075985;
+    --color-button-secondary: #38bdf8;
+    --color-button-secondary-hover: #0ea5e9;
+    --color-edge: #0369a1;
     --color-conversation-item: #0a3d5c;
     --color-conversation-item-active: #0c4a6e;
     --color-conversation-item-border: #075985;
+    --color-background: #dbeafe;
 }
 
+/* Ocean Theme - Dark Mode */
 :root[data-color-theme='ocean'][data-theme='dark'] {
-    --color-bg-main: #082f49;
+    --color-bg-main: #010208;
     --color-text-main: #e0f2fe;
-    --color-canvas-bg: #082f49;
-    --color-sidebar-bg: #0c1e2e;
+    --color-canvas-bg: #010208;
+    --color-sidebar-bg: #010208;
     --color-sidebar-text: #e0f2fe;
     --color-accent: #0ea5e9;
     --color-accent-hover: #0284c7;
-    --color-node-bg: #0c3d5a;
+    --color-node-bg: #0a1025;
     --color-node-border: #0ea5e9;
     --color-node-user: #0ea5e9;
-    --color-node-user-text: #051923;
-    --color-node-ai: #0c2f42;
+    --color-node-user-text: #010208;
+    --color-node-ai: #15203b;
     --color-node-ai-text: #e0f2fe;
     --color-button-primary: #0ea5e9;
     --color-button-primary-hover: #0284c7;
+    --color-button-secondary: #7dd3fc;
+    --color-button-secondary-hover: #38bdf8;
     --color-edge: #0ea5e9;
-    --color-conversation-item: #0c1e2e;
-    --color-conversation-item-active: #164e63;
-    --color-conversation-item-border: #075985;
+    --color-conversation-item: #0a1025;
+    --color-conversation-item-active: #15203b;
+    --color-conversation-item-border: #1e293b;
+    --color-background: #010208;
 }
 
 /* Forest Theme - Light Mode */
 :root[data-color-theme='forest'] {
-    --color-bg-main: #f0fdf4;
+    --color-bg-main: #d1fae5;
     --color-text-main: #14532d;
-    --color-canvas-bg: #f0fdf4;
+    --color-canvas-bg: #d1fae5;
     --color-sidebar-bg: #14532d;
-    --color-sidebar-text: #dcfce7;
-    --color-accent: #16a34a;
-    --color-accent-hover: #15803d;
-    --color-node-bg: #fefffe;
-    --color-node-border: #16a34a;
-    --color-node-user: #16a34a;
-    --color-node-user-text: #f9fafb;
+    --color-sidebar-text: #f0fdf4;
+    --color-accent: #15803d;
+    --color-accent-hover: #166534;
+    --color-node-bg: #e4fdf0;
+    --color-node-border: #15803d;
+    --color-node-user: #15803d;
+    --color-node-user-text: #f0fdf4;
     --color-node-ai: #bbf7d0;
     --color-node-ai-text: #14532d;
-    --color-button-primary: #16a34a;
-    --color-button-primary-hover: #15803d;
-    --color-edge: #16a34a;
-    --color-conversation-item: #0f3d23;
-    --color-conversation-item-active: #14532d;
-    --color-conversation-item-border: #166534;
+    --color-button-primary: #15803d;
+    --color-button-primary-hover: #166534;
+    --color-button-secondary: #4ade80;
+    --color-button-secondary-hover: #22c55e;
+    --color-edge: #15803d;
+    --color-conversation-item: #14532d;
+    --color-conversation-item-active: #166534;
+    --color-conversation-item-border: #15803d;
+    --color-background: #d1fae5;
 }
 
+/* Forest Theme - Dark Mode */
 :root[data-color-theme='forest'][data-theme='dark'] {
-    --color-bg-main: #052e16;
+    --color-bg-main: #010502;
     --color-text-main: #dcfce7;
-    --color-canvas-bg: #052e16;
-    --color-sidebar-bg: #0a1f0f;
+    --color-canvas-bg: #010502;
+    --color-sidebar-bg: #010401;
     --color-sidebar-text: #dcfce7;
     --color-accent: #22c55e;
     --color-accent-hover: #16a34a;
-    --color-node-bg: #0a3d21;
+    --color-node-bg: #041208;
     --color-node-border: #22c55e;
     --color-node-user: #22c55e;
-    --color-node-user-text: #051f0d;
-    --color-node-ai: #0a2817;
+    --color-node-user-text: #010502;
+    --color-node-ai: #082012;
     --color-node-ai-text: #dcfce7;
     --color-button-primary: #22c55e;
     --color-button-primary-hover: #16a34a;
+    --color-button-secondary: #86efac;
+    --color-button-secondary-hover: #4ade80;
     --color-edge: #22c55e;
-    --color-conversation-item: #0a1f0f;
-    --color-conversation-item-active: #14532d;
-    --color-conversation-item-border: #166534;
+    --color-conversation-item: #041208;
+    --color-conversation-item-active: #092510;
+    --color-conversation-item-border: #0c3315;
+    --color-background: #010502;
 }
 
 /* Sunset Theme - Light Mode */
 :root[data-color-theme='sunset'] {
-    --color-bg-main: #fff7ed;
+    --color-bg-main: #ffe4cf;
     --color-text-main: #7c2d12;
-    --color-canvas-bg: #fff7ed;
+    --color-canvas-bg: #ffe4cf;
     --color-sidebar-bg: #7c2d12;
-    --color-sidebar-text: #fed7aa;
-    --color-accent: #ea580c;
-    --color-accent-hover: #c2410c;
-    --color-node-bg: #fffffe;
-    --color-node-border: #ea580c;
-    --color-node-user: #ea580c;
-    --color-node-user-text: #f9fafb;
+    --color-sidebar-text: #ffedd5;
+    --color-accent: #c2410c;
+    --color-accent-hover: #9a3412;
+    --color-node-bg: #fff0df;
+    --color-node-border: #c2410c;
+    --color-node-user: #c2410c;
+    --color-node-user-text: #fff7ed;
     --color-node-ai: #fdba74;
     --color-node-ai-text: #7c2d12;
-    --color-button-primary: #ea580c;
-    --color-button-primary-hover: #c2410c;
-    --color-edge: #ea580c;
-    --color-conversation-item: #6b2710;
-    --color-conversation-item-active: #7c2d12;
-    --color-conversation-item-border: #9a3412;
+    --color-button-primary: #c2410c;
+    --color-button-primary-hover: #9a3412;
+    --color-button-secondary: #fb923c;
+    --color-button-secondary-hover: #f97316;
+    --color-edge: #c2410c;
+    --color-conversation-item: #7c2d12;
+    --color-conversation-item-active: #9a3412;
+    --color-conversation-item-border: #c2410c;
+    --color-background: #ffe4cf;
 }
 
+/* Sunset Theme - Dark Mode */
 :root[data-color-theme='sunset'][data-theme='dark'] {
-    --color-bg-main: #431407;
+    --color-bg-main: #0d0201;
     --color-text-main: #fed7aa;
-    --color-canvas-bg: #431407;
-    --color-sidebar-bg: #2d0a05;
+    --color-canvas-bg: #0d0201;
+    --color-sidebar-bg: #080100;
     --color-sidebar-text: #fed7aa;
     --color-accent: #f97316;
     --color-accent-hover: #ea580c;
-    --color-node-bg: #5a1a0a;
+    --color-node-bg: #1f0603;
     --color-node-border: #f97316;
     --color-node-user: #f97316;
-    --color-node-user-text: #1f0803;
-    --color-node-ai: #4a1509;
+    --color-node-user-text: #0d0201;
+    --color-node-ai: #290905;
     --color-node-ai-text: #fed7aa;
     --color-button-primary: #f97316;
     --color-button-primary-hover: #ea580c;
+    --color-button-secondary: #fdba74;
+    --color-button-secondary-hover: #fb923c;
     --color-edge: #f97316;
-    --color-conversation-item: #2d0a05;
-    --color-conversation-item-active: #5a1a0a;
-    --color-conversation-item-border: #9a3412;
+    --color-conversation-item: #1f0603;
+    --color-conversation-item-active: #360f08;
+    --color-conversation-item-border: #4d180c;
+    --color-background: #0d0201;
 }
 
 body {

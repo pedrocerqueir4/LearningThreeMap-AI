@@ -6,7 +6,7 @@
 /* Main App Layout */
 .app-root {
     display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: 240px minmax(0, 1fr);
     height: 100vh;
     width: 100vw;
     overflow: hidden;
@@ -14,7 +14,7 @@
 }
 
 .app-root.app-root--sidebar-collapsed {
-    grid-template-columns: 60px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
 }
 
 /* Canvas Area */
@@ -26,14 +26,5 @@
     min-height: 0;
     height: 100vh;
     overflow: hidden;
-    background-color: #fdfaf5;
-}
-
-/* Dark mode */
-:root[data-theme='dark'] .app-root {
-    background-color: #1a1a1a;
-}
-
-:root[data-theme='dark'] .canvas {
-    background-color: #1a1a1a;
+    background-color: var(--color-background, #fdfaf5);
 }
