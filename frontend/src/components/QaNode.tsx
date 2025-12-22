@@ -22,21 +22,19 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
 
     // Content reference for the contentEditable element
     const contentRef = useRef<HTMLDivElement>(null)
-    const [processedContextIds, setProcessedContextIds] = useState<Set<string>>(new Set())
+    // Use ref instead of state to avoid triggering re-renders when marking contexts as processed
+    // This prevents duplicate insertions in React StrictMode
+    const processedContextIdsRef = useRef<Set<string>>(new Set())
 
     // Handle new pending contexts
     useEffect(() => {
         if (!isDraft || !data.pendingContexts || !contentRef.current) return
 
-        const newContexts = data.pendingContexts.filter(c => !processedContextIds.has(c.id))
+        const newContexts = data.pendingContexts.filter(c => !processedContextIdsRef.current.has(c.id))
         if (newContexts.length === 0) return
 
         // Mark as processed immediately to avoid double insertion
-        setProcessedContextIds(prev => {
-            const next = new Set(prev)
-            newContexts.forEach(c => next.add(c.id))
-            return next
-        })
+        newContexts.forEach(c => processedContextIdsRef.current.add(c.id))
 
         // Insert blocks
         const selection = window.getSelection()
@@ -76,7 +74,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                 selection?.addRange(range)
             }
         }
-    }, [data.pendingContexts, isDraft, processedContextIds])
+    }, [data.pendingContexts, isDraft])
 
     const serializeContent = () => {
         if (!contentRef.current) return ''
@@ -283,10 +281,15 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                 onMouseUp={(e) => {
                                     if (!data.isLocked || !data.onTextSelected) return
                                     const selection = window.getSelection()
-                                    const selectedText = selection?.toString().trim()
+                                    if (!selection || selection.rangeCount === 0) return
+                                    const selectedText = selection.toString().trim()
                                     if (selectedText && selectedText.length > 0) {
+                                        // Only send position and node ID, not the text itself
+                                        // Text will be read fresh when user clicks a menu option
+                                        const range = selection.getRangeAt(0)
+                                        const rect = range.getBoundingClientRect()
                                         e.stopPropagation()
-                                        data.onTextSelected(selectedText, data.id)
+                                        data.onTextSelected(data.id, rect)
                                     }
                                 }}
                             >

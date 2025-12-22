@@ -49,7 +49,6 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   // Lock mode for text selection feature
   const [isLockMode, setIsLockMode] = useState(false)
-  const [selectedText, setSelectedText] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [dropdownPosition, setDropdownPosition] = useState<{ x: number; y: number } | null>(null)
 
@@ -106,22 +105,16 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     setIsLockMode((prev) => !prev)
     // Clear selection when toggling off
     if (isLockMode) {
-      setSelectedText(null)
       setSelectedNodeId(null)
       setDropdownPosition(null)
+      window.getSelection()?.removeAllRanges()
     }
   }, [isLockMode])
 
   const handleTextSelected = useCallback(
-    (text: string, nodeId: string) => {
-      // Get the selection position from browser
-      const selection = window.getSelection()
-      if (!selection || selection.rangeCount === 0) return
-
-      const range = selection.getRangeAt(0)
-      const rect = range.getBoundingClientRect()
-
-      setSelectedText(text)
+    (nodeId: string, rect: DOMRect) => {
+      // Only store the node ID and position, NOT the text itself
+      // The actual selection will be read fresh when a menu button is clicked
       setSelectedNodeId(nodeId)
       setDropdownPosition({
         x: rect.left + rect.width / 2,
@@ -134,7 +127,6 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
   // handleAskAboutSelection is defined after useMemo since it depends on pairs
 
   const handleCloseDropdown = useCallback(() => {
-    setSelectedText(null)
     setSelectedNodeId(null)
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
@@ -373,42 +365,56 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
 
   // handleAskAboutSelection needs to be defined after useMemo since it uses pairs
   const handleAskAboutSelection = useCallback(() => {
-    if (!selectedText || !selectedNodeId) return
+    // Guard: Capture state and clear immediately to prevent duplicate invocations
+    const nodeId = selectedNodeId
 
-    // Find the anchor node ID for the selected node
-    const pair = pairs.find((p) => p.id === selectedNodeId)
-    const anchorNodeId = pair?.anchorNodeId ?? selectedNodeId
-
-    // Create a draft with the selected text as context
-    createDraft(anchorNodeId, [anchorNodeId], selectedText)
-
-    // Clear selection state
-    setSelectedText(null)
+    // Clear UI state immediately to prevent double-clicks/multiple calls
     setSelectedNodeId(null)
     setDropdownPosition(null)
+
+    if (!nodeId) return
+
+    // Read the ACTUAL selected text fresh from the browser selection
+    // This ensures we only capture it once, at the exact moment the user clicks
+    const selection = window.getSelection()
+    const text = selection?.toString().trim()
+
+    // Clear browser selection
     window.getSelection()?.removeAllRanges()
+
+    if (!text) return
+
+    // Find the anchor node ID for the selected node
+    const pair = pairs.find((p) => p.id === nodeId)
+    const anchorNodeId = pair?.anchorNodeId ?? nodeId
+
+    // Create a draft with the selected text as context
+    createDraft(anchorNodeId, [anchorNodeId], text)
 
     // Auto-unlock after selecting an option
     setIsLockMode(false)
-  }, [selectedText, selectedNodeId, pairs, createDraft])
+  }, [selectedNodeId, pairs, createDraft])
 
   // Handler for "Chat in node..." option - enters selection mode for picking a draft
   const handleChatInNodeSelection = useCallback(() => {
-    if (!selectedText) return
+    // Read the selected text fresh from the browser
+    const selection = window.getSelection()
+    const text = selection?.toString().trim()
+
+    if (!text) return
 
     // Store the context text and enter selection mode
-    setPendingContextText(selectedText)
+    setPendingContextText(text)
     setIsChatInNodeMode(true)
 
     // Close the dropdown
-    setSelectedText(null)
     setSelectedNodeId(null)
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
 
     // Unlock movement so user can pan/navigate while selecting a draft node
     setIsLockMode(false)
-  }, [selectedText])
+  }, [])
 
   // Handler for clicking a draft node while in chat-in-node mode
   const handleDraftClickForContext = useCallback(
@@ -1084,7 +1090,7 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         </div>
       )}
       {/* Text selection dropdown */}
-      {dropdownPosition && selectedText && (
+      {dropdownPosition && (
         <div
           className="qa-selection-dropdown"
           style={{

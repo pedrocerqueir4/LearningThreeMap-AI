@@ -24,7 +24,7 @@ export type QaNodeData = {
     // Lock mode for text selection
     isLocked?: boolean
     onToggleLockMode?: () => void
-    onTextSelected?: (text: string, nodeId: string) => void
+    onTextSelected?: (nodeId: string, rect: DOMRect) => void
     // Context blocks to be added to the input
     pendingContexts?: Array<{ id: string, text: string }>
 }
