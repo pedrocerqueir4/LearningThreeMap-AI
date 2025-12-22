@@ -51,7 +51,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
         newContexts.forEach(context => {
             const span = document.createElement('span')
             span.contentEditable = 'false'
-            span.className = 'qa-context-block'
+            span.className = 'qa-context-block qa-context-block--draft'
             span.dataset.contextText = context.text
             const displayText = context.text.length > 20 ? context.text.substring(0, 20) + '...' : context.text
             span.innerText = ` "${displayText}" `
@@ -85,13 +85,30 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement
                 if (el.dataset.contextText) {
-                    text += el.dataset.contextText
+                    text += `{{CONTEXT:${el.dataset.contextText}}}`
                 } else {
                     text += el.innerText
                 }
             }
         })
         return text.trim()
+    }
+
+    const renderUserText = (text: string) => {
+        // Regex to find context blocks marked as {{CONTEXT:content}}
+        const parts = text.split(/({{CONTEXT:[\s\S]*?}})/g)
+        return parts.map((part, index) => {
+            if (part.startsWith('{{CONTEXT:') && part.endsWith('}}')) {
+                const content = part.slice(10, -2)
+                const display = content.length > 20 ? content.substring(0, 20) + '...' : content
+                return (
+                    <span key={index} className="qa-context-block qa-context-block--permanent" title={content}>
+                        "{display}"
+                    </span>
+                )
+            }
+            return part
+        })
     }
 
     const handleSend = async () => {
@@ -246,7 +263,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                         ) : (
                             data.userText && (
                                 <div className="qa-bubble-row">
-                                    <div className="qa-bubble qa-bubble--user">{data.userText}</div>
+                                    <div className="qa-bubble qa-bubble--user">{renderUserText(data.userText)}</div>
                                     <button
                                         className="qa-node-edit-icon"
                                         onClick={(e) => {

@@ -37,6 +37,12 @@
     --color-conversation-item-active: #4a3e5c;
     --color-conversation-item-border: #524b60;
     --color-background: #e6e4df;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: #b1b1b1;
+    --color-context-draft-text: #000000;
+    --color-context-perm-bg: #7656ac;
+    --color-context-perm-text: #ffffff;
 }
 
 /* Purple Theme - Dark Mode */
@@ -63,6 +69,13 @@
     --color-conversation-item-active: #1e0e38;
     --color-conversation-item-border: #2d1b50;
     --color-background: #050208;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: transparent;
+    --color-context-draft-text: #ffffff;
+    --color-context-perm-bg: transparent;
+    --color-context-perm-text: #000000;
+    --color-context-perm-border: #000000;
 }
 
 /* Ocean Theme - Light Mode */
@@ -89,6 +102,12 @@
     --color-conversation-item-active: #0c4a6e;
     --color-conversation-item-border: #075985;
     --color-background: #dbeafe;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: #b1b1b1;
+    --color-context-draft-text: #000000;
+    --color-context-perm-bg: #bce8ff;
+    --color-context-perm-text: #0369a1;
 }
 
 /* Ocean Theme - Dark Mode */
@@ -115,6 +134,13 @@
     --color-conversation-item-active: #15203b;
     --color-conversation-item-border: #1e293b;
     --color-background: #010208;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: transparent;
+    --color-context-draft-text: #ffffff;
+    --color-context-perm-bg: transparent;
+    --color-context-perm-text: #000000;
+    --color-context-perm-border: #000000;
 }
 
 /* Forest Theme - Light Mode */
@@ -141,6 +167,12 @@
     --color-conversation-item-active: #166534;
     --color-conversation-item-border: #15803d;
     --color-background: #d1fae5;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: #b1b1b1;
+    --color-context-draft-text: #000000;
+    --color-context-perm-bg: #b7ffd1;
+    --color-context-perm-text: #15803d;
 }
 
 /* Forest Theme - Dark Mode */
@@ -167,6 +199,13 @@
     --color-conversation-item-active: #092510;
     --color-conversation-item-border: #0c3315;
     --color-background: #010502;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: transparent;
+    --color-context-draft-text: #ffffff;
+    --color-context-perm-bg: transparent;
+    --color-context-perm-text: #000000;
+    --color-context-perm-border: #000000;
 }
 
 /* Sunset Theme - Light Mode */
@@ -193,6 +232,12 @@
     --color-conversation-item-active: #9a3412;
     --color-conversation-item-border: #c2410c;
     --color-background: #ffe4cf;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: #b1b1b1;
+    --color-context-draft-text: #000000;
+    --color-context-perm-bg: #ffbca1;
+    --color-context-perm-text: #c2410c;
 }
 
 /* Sunset Theme - Dark Mode */
@@ -219,6 +264,13 @@
     --color-conversation-item-active: #360f08;
     --color-conversation-item-border: #4d180c;
     --color-background: #0d0201;
+
+    /* Context Block Colors */
+    --color-context-draft-bg: transparent;
+    --color-context-draft-text: #ffffff;
+    --color-context-perm-bg: transparent;
+    --color-context-perm-text: #000000;
+    --color-context-perm-border: #000000;
 }
 
 body {
