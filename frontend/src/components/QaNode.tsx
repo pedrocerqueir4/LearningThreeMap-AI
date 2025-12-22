@@ -268,9 +268,9 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                                                 data.onToggleLockMode?.()
                                             }}
                                             onDoubleClick={(e) => e.stopPropagation()}
-                                            title={data.isLocked ? 'Unlock movement' : 'Lock for text selection'}
+                                            title={data.isLocked ? 'Disable text selection' : 'Enable text selection'}
                                         >
-                                            {data.isLocked ? '🔓' : '✋'}
+                                            {data.isLocked ? '❌' : '❓'}
                                         </button>
                                     )}
                                 </div>

@@ -387,6 +387,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     setSelectedNodeId(null)
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
+
+    // Auto-unlock after selecting an option
+    setIsLockMode(false)
   }, [selectedText, selectedNodeId, pairs, createDraft])
 
   // Handler for "Chat in node..." option - enters selection mode for picking a draft
@@ -402,6 +405,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
     setSelectedNodeId(null)
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
+
+    // Unlock movement so user can pan/navigate while selecting a draft node
+    setIsLockMode(false)
   }, [selectedText])
 
   // Handler for clicking a draft node while in chat-in-node mode
@@ -411,6 +417,9 @@ function InnerConversationGraph({ graph, conversationId, onSendFromNode }: Conve
         addDraftContext(draftId, pendingContextText)
         setIsChatInNodeMode(false)
         setPendingContextText(null)
+
+        // Auto-unlock after selecting an option
+        setIsLockMode(false)
       }
     },
     [isChatInNodeMode, pendingContextText, addDraftContext]
