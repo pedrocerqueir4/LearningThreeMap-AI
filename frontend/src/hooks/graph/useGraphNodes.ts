@@ -22,7 +22,8 @@ type UseGraphNodesProps = {
     handleSendFromDraft: (
         fromNodeIds: string[] | null,
         content: string,
-        draftId: string
+        draftId: string,
+        contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
     ) => Promise<void>
     createDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
     handleEditNode: (nodeId: string, newContent: string) => Promise<void>
@@ -124,6 +125,7 @@ export function useGraphNodes({
                     isLocked: isLockMode,
                     onToggleLockMode: handleToggleLockMode,
                     onTextSelected: handleTextSelected,
+                    contextRanges: p.userNode.context_ranges ?? null,
                 },
                 selected:
                     selectionMode !== 'none' &&

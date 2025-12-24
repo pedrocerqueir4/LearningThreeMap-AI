@@ -3,7 +3,7 @@ import type { NodeProps } from 'reactflow'
 import { Handle, Position } from 'reactflow'
 import ReactMarkdown from 'react-markdown'
 import { markdownComponents, remarkPlugins, rehypePlugins } from '../utils/markdown'
-import type { QaNodeData } from '../types'
+import type { QaNodeData, ContextRange } from '../types'
 
 /**
  * QA (Question-Answer) Node component for the conversation graph
@@ -53,6 +53,7 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
             span.contentEditable = 'false'
             span.className = 'qa-context-block qa-context-block--draft'
             span.dataset.contextText = context.text
+            span.dataset.sourceNodeId = context.sourceNodeId
             const displayText = context.text.length > 20 ? context.text.substring(0, 20) + '...' : context.text
             span.innerText = ` "${displayText}" `
 
@@ -76,43 +77,92 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
         }
     }, [data.pendingContexts, isDraft])
 
-    const serializeContent = () => {
-        if (!contentRef.current) return ''
+    /**
+     * Serialize content from contentEditable, extracting plain text and context ranges.
+     * Returns { text: string, contextRanges: ContextRange[] }
+     */
+    const serializeContent = (): { text: string; contextRanges: ContextRange[] } => {
+        if (!contentRef.current) return { text: '', contextRanges: [] }
+
         let text = ''
+        const contextRanges: ContextRange[] = []
+
         contentRef.current.childNodes.forEach(node => {
             if (node.nodeType === Node.TEXT_NODE) {
                 text += node.textContent
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement
-                if (el.dataset.contextText) {
-                    text += `{{CONTEXT:${el.dataset.contextText}}}`
+                if (el.dataset.contextText && el.dataset.sourceNodeId) {
+                    // This is a context block - record its position and use the original text
+                    const contextText = el.dataset.contextText
+                    const startPos = text.length
+                    text += contextText
+                    const endPos = text.length
+
+                    contextRanges.push({
+                        sourceNodeId: el.dataset.sourceNodeId,
+                        startPos,
+                        endPos,
+                    })
                 } else {
                     text += el.innerText
                 }
             }
         })
-        return text.trim()
+
+        return { text: text.trim(), contextRanges }
     }
 
+    /**
+     * Render user text with context ranges highlighted as spans.
+     * Uses contextRanges from database for complete nodes.
+     */
     const renderUserText = (text: string) => {
-        // Regex to find context blocks marked as {{CONTEXT:content}}
-        const parts = text.split(/({{CONTEXT:[\s\S]*?}})/g)
-        return parts.map((part, index) => {
-            if (part.startsWith('{{CONTEXT:') && part.endsWith('}}')) {
-                const content = part.slice(10, -2)
-                const display = content.length > 20 ? content.substring(0, 20) + '...' : content
-                return (
-                    <span key={index} className="qa-context-block qa-context-block--permanent" title={content}>
-                        "{display}"
-                    </span>
-                )
+        const ranges = data.contextRanges
+
+        // If no context ranges, return plain text
+        if (!ranges || ranges.length === 0) {
+            return text
+        }
+
+        // Sort ranges by startPos to process in order
+        const sortedRanges = [...ranges].sort((a, b) => a.startPos - b.startPos)
+
+        const elements: React.ReactNode[] = []
+        let lastEnd = 0
+
+        sortedRanges.forEach((range, index) => {
+            // Add text before this range
+            if (range.startPos > lastEnd) {
+                elements.push(text.slice(lastEnd, range.startPos))
             }
-            return part
+
+            // Add the context span
+            const contextText = text.slice(range.startPos, range.endPos)
+            const display = contextText.length > 20 ? contextText.substring(0, 20) + '...' : contextText
+            elements.push(
+                <span
+                    key={`context-${index}`}
+                    className="qa-context-block qa-context-block--permanent"
+                    title={contextText}
+                >
+                    "{display}"
+                </span>
+            )
+
+            lastEnd = range.endPos
         })
+
+        // Add remaining text after last range
+        if (lastEnd < text.length) {
+            elements.push(text.slice(lastEnd))
+        }
+
+        return elements
     }
 
     const handleSend = async () => {
-        const text = serializeContent()
+        const { text, contextRanges } = serializeContent()
         if (!isDraft || !text || sending) return
         setSending(true)
         setError(null)
@@ -124,7 +174,12 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                         ? [data.anchorNodeId]
                         : []
 
-            await data.onSend(effectiveFromNodeIds.length ? effectiveFromNodeIds : null, text, data.id)
+            await data.onSend(
+                effectiveFromNodeIds.length ? effectiveFromNodeIds : null,
+                text,
+                data.id,
+                contextRanges.length > 0 ? contextRanges : null
+            )
             if (contentRef.current) contentRef.current.innerText = ''
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to send message')

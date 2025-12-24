@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import * as api from '../services/api'
+import type { ContextRange } from '../types'
 
 export type GraphNode = {
   id: string
@@ -10,6 +11,7 @@ export type GraphNode = {
   created_at: string
   pos_x: number | null
   pos_y: number | null
+  context_ranges: ContextRange[] | null
 }
 
 export type GraphEdge = {

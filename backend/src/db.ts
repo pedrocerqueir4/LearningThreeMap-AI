@@ -34,6 +34,7 @@ export type Message = {
   author: 'user' | 'ai'
   content: string
   created_at: string
+  context_ranges: ContextRange[] | null
 }
 export type GraphNode = {
   id: string
@@ -44,6 +45,7 @@ export type GraphNode = {
   created_at: string
   pos_x: number | null
   pos_y: number | null
+  context_ranges: ContextRange[] | null
 }
 export type GraphEdge = {
   id: string
@@ -51,6 +53,11 @@ export type GraphEdge = {
   source: string
   target: string
   created_at: string
+}
+export type ContextRange = {
+  sourceNodeId: string
+  startPos: number
+  endPos: number
 }
 export type GraphDelta = { newNodes: GraphNode[]; newEdges: GraphEdge[] }
 export type NodePositionUpdate = { nodeId: string; x: number; y: number }
@@ -281,18 +288,58 @@ export async function deleteNodeSubtreeRespectingJoins(
 }
 
 export async function getGraph(db: D1Database, conversationId: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+  // Join nodes with messages to get context_ranges
   const nodesRes = await db
     .prepare(
-      'SELECT id, conversation_id, message_id, type, label, created_at, pos_x, pos_y FROM nodes WHERE conversation_id = ?',
+      `SELECT 
+        n.id, n.conversation_id, n.message_id, n.type, n.label, n.created_at, n.pos_x, n.pos_y,
+        m.context_ranges as context_ranges_json
+      FROM nodes n
+      LEFT JOIN messages m ON n.message_id = m.id
+      WHERE n.conversation_id = ?`,
     )
     .bind(conversationId)
-    .all<GraphNode>()
+    .all<{
+      id: string
+      conversation_id: string
+      message_id: string | null
+      type: 'user' | 'ai'
+      label: string
+      created_at: string
+      pos_x: number | null
+      pos_y: number | null
+      context_ranges_json: string | null
+    }>()
+
+  // Parse context_ranges JSON for each node
+  const nodes: GraphNode[] = (nodesRes.results || []).map((row) => {
+    let context_ranges: ContextRange[] | null = null
+    if (row.context_ranges_json) {
+      try {
+        context_ranges = JSON.parse(row.context_ranges_json) as ContextRange[]
+      } catch {
+        context_ranges = null
+      }
+    }
+    return {
+      id: row.id,
+      conversation_id: row.conversation_id,
+      message_id: row.message_id,
+      type: row.type,
+      label: row.label,
+      created_at: row.created_at,
+      pos_x: row.pos_x,
+      pos_y: row.pos_y,
+      context_ranges,
+    }
+  })
+
   const edgesRes = await db
     .prepare('SELECT id, conversation_id, source, target, created_at FROM edges WHERE conversation_id = ?')
     .bind(conversationId)
     .all<GraphEdge>()
   return {
-    nodes: (nodesRes.results || []) as GraphNode[],
+    nodes,
     edges: (edgesRes.results || []) as GraphEdge[],
   }
 }
@@ -325,8 +372,9 @@ export async function createMessageWithAI(
   aiOverrideContent?: string | null,
   draftNodeId?: string | null,
   position?: { x: number; y: number } | null,
+  contextRanges?: ContextRange[] | null,
 ): Promise<{ userMessage: Message; aiMessage: Message; graphDelta: GraphDelta }> {
-  const userMessage = createMessage(conversationId, 'user', content)
+  const userMessage = createMessage(conversationId, 'user', content, contextRanges)
   const aiContent = aiOverrideContent ?? `Echo: ${content}`
   const aiMessage = createMessage(conversationId, 'ai', aiContent)
 

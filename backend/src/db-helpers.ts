@@ -2,7 +2,7 @@
  * Database helper functions to reduce code duplication
  */
 
-import type { Message, GraphNode, GraphEdge } from './db'
+import type { Message, GraphNode, GraphEdge, ContextRange } from './db'
 
 /**
  * Insert a message into the database
@@ -11,16 +11,18 @@ export async function insertMessage(
     db: D1Database,
     message: Message
 ): Promise<void> {
+    const contextRangesJson = message.context_ranges ? JSON.stringify(message.context_ranges) : null
     await db
         .prepare(
-            'INSERT INTO messages (id, conversation_id, author, content, created_at) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO messages (id, conversation_id, author, content, created_at, context_ranges) VALUES (?, ?, ?, ?, ?, ?)'
         )
         .bind(
             message.id,
             message.conversation_id,
             message.author,
             message.content,
-            message.created_at
+            message.created_at,
+            contextRangesJson
         )
         .run()
 }
@@ -96,7 +98,8 @@ export async function fetchGraphStructure(
 export function createMessage(
     conversationId: string,
     author: 'user' | 'ai',
-    content: string
+    content: string,
+    contextRanges?: ContextRange[] | null
 ): Message {
     return {
         id: crypto.randomUUID(),
@@ -104,6 +107,7 @@ export function createMessage(
         author,
         content,
         created_at: new Date().toISOString(),
+        context_ranges: contextRanges ?? null,
     }
 }
 
@@ -125,6 +129,7 @@ export function createNode(
         created_at: new Date().toISOString(),
         pos_x: null,
         pos_y: null,
+        context_ranges: null,
     }
 }
 

@@ -16,7 +16,7 @@ type MessageState = {
 type MessageActions = {
   setMessagesForConversation: (conversationId: string, messages: Message[]) => void
   appendMessages: (conversationId: string, messages: Message | Message[]) => void
-  sendMessage: (conversationId: string, content: string, fromNodeIds?: string[] | null, draftNodeId?: string | null, position?: { x: number; y: number } | null) => Promise<void>
+  sendMessage: (conversationId: string, content: string, fromNodeIds?: string[] | null, draftNodeId?: string | null, position?: { x: number; y: number } | null, contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null) => Promise<void>
 }
 
 /**
@@ -58,11 +58,11 @@ export const useMessageStore = create<MessageState & MessageActions>((set, get) 
       },
     }))
   },
-  sendMessage: async (conversationId, content, fromNodeIds, draftNodeId, position) => {
+  sendMessage: async (conversationId, content, fromNodeIds, draftNodeId, position, contextRanges) => {
     const trimmed = content.trim()
     if (!trimmed) return
 
-    const data = await api.sendMessage(conversationId, trimmed, fromNodeIds, draftNodeId, position)
+    const data = await api.sendMessage(conversationId, trimmed, fromNodeIds, draftNodeId, position, contextRanges)
 
     const userMsg = toClientMessage(data.userMessage)
     const aiMsg = toClientMessage(data.aiMessage)

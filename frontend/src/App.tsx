@@ -81,12 +81,18 @@ function App() {
     }
   }, [selectedConversation, graphByConversationId, fetchGraph])
 
-  const handleSendFromNode = async (fromNodeIds: string[] | null, content: string, draftNodeId?: string | null, position?: { x: number; y: number } | null) => {
+  const handleSendFromNode = async (
+    fromNodeIds: string[] | null,
+    content: string,
+    draftNodeId?: string | null,
+    position?: { x: number; y: number } | null,
+    contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
+  ) => {
     if (!selectedConversation) return
 
     const conversationId = selectedConversation.id
 
-    await sendMessage(conversationId, content, fromNodeIds, draftNodeId, position)
+    await sendMessage(conversationId, content, fromNodeIds, draftNodeId, position, contextRanges)
     await fetchGraph(conversationId)
     // Refresh conversations so any auto-generated title from the backend is
     // reflected in the sidebar list.

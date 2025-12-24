@@ -17,7 +17,7 @@ export type QaNodeData = {
     aiText: string | null
     anchorNodeId: string | null
     fromNodeIds: string[] | null
-    onSend: (fromNodeIds: string[] | null, content: string, draftId: string) => Promise<void>
+    onSend: (fromNodeIds: string[] | null, content: string, draftId: string, contextRanges?: ContextRange[] | null) => Promise<void>
     onCreateDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
     onEdit: (nodeId: string, newContent: string) => Promise<void>
     isZoomed: boolean
@@ -25,8 +25,19 @@ export type QaNodeData = {
     isLocked?: boolean
     onToggleLockMode?: () => void
     onTextSelected?: (nodeId: string, rect: DOMRect) => void
-    // Context blocks to be added to the input
-    pendingContexts?: Array<{ id: string, text: string }>
+    // Context blocks to be added to the input (for draft mode)
+    pendingContexts?: Array<{ id: string, text: string, sourceNodeId: string }>
+    // Context ranges loaded from database (for complete mode)
+    contextRanges?: ContextRange[] | null
+}
+
+/**
+ * Context range representing a span of text referencing another node
+ */
+export type ContextRange = {
+    sourceNodeId: string // TO-DO: Use to connect and move to another node
+    startPos: number
+    endPos: number
 }
 
 
@@ -37,7 +48,7 @@ export type DraftNode = {
     id: string
     anchorNodeId: string | null
     fromNodeIds: string[]
-    pendingContexts?: Array<{ id: string, text: string }>
+    pendingContexts?: Array<{ id: string, text: string, sourceNodeId: string }>
 }
 
 /**

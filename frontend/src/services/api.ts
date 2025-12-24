@@ -89,7 +89,8 @@ export async function sendMessage(
     content: string,
     fromNodeIds?: string[] | null,
     draftNodeId?: string | null,
-    position?: { x: number; y: number } | null
+    position?: { x: number; y: number } | null,
+    contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
 ): Promise<MessageResponse> {
     return apiRequest<MessageResponse>('/api/messages', {
         method: 'POST',
@@ -100,6 +101,7 @@ export async function sendMessage(
             fromNodeIds: fromNodeIds ?? [],
             draftNodeId: draftNodeId ?? null,
             position: position ?? null,
+            contextRanges: contextRanges ?? null,
         }),
     })
 }
@@ -118,6 +120,7 @@ export type GraphResponse = {
         created_at: string
         pos_x: number | null
         pos_y: number | null
+        context_ranges: { sourceNodeId: string; startPos: number; endPos: number }[] | null
     }>
     edges: Array<{
         id: string

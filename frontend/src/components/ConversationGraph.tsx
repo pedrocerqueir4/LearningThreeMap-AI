@@ -40,7 +40,8 @@ export type ConversationGraphProps = {
     fromNodeIds: string[] | null,
     content: string,
     draftNodeId?: string | null,
-    position?: { x: number; y: number } | null
+    position?: { x: number; y: number } | null,
+    contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
   ) => Promise<void>
 }
 
@@ -68,6 +69,9 @@ function InnerConversationGraph({
   // Chat in node selection mode
   const [isChatInNodeMode, setIsChatInNodeMode] = useState(false)
   const [pendingContextText, setPendingContextText] = useState<string | null>(
+    null
+  )
+  const [pendingContextSourceNodeId, setPendingContextSourceNodeId] = useState<string | null>(
     null
   )
 
@@ -107,13 +111,14 @@ function InnerConversationGraph({
     async (
       fromNodeIds: string[] | null,
       content: string,
-      draftId: string
+      draftId: string,
+      contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
     ) => {
       const draftNode = getNodes().find((n) => n.id === draftId)
       const position = draftNode
         ? { x: draftNode.position.x, y: draftNode.position.y }
         : null
-      await onSendFromNode(fromNodeIds, content, draftId, position)
+      await onSendFromNode(fromNodeIds, content, draftId, position, contextRanges)
       removeDraft(draftId)
     },
     [onSendFromNode, removeDraft, getNodes]
@@ -185,7 +190,8 @@ function InnerConversationGraph({
     const pair = pairs.find((p) => p.id === nodeId)
     const anchorNodeId = pair?.anchorNodeId ?? nodeId
 
-    createDraft(anchorNodeId, [anchorNodeId], text)
+    // Pass the nodeId as sourceNodeId for the context
+    createDraft(anchorNodeId, [anchorNodeId], text, nodeId)
     setIsLockMode(false)
   }, [selectedNodeId, pairs, createDraft])
 
@@ -196,29 +202,32 @@ function InnerConversationGraph({
     if (!text) return
 
     setPendingContextText(text)
+    setPendingContextSourceNodeId(selectedNodeId)
     setIsChatInNodeMode(true)
 
     setSelectedNodeId(null)
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
     setIsLockMode(false)
-  }, [])
+  }, [selectedNodeId])
 
   const handleDraftClickForContext = useCallback(
     (draftId: string) => {
-      if (isChatInNodeMode && pendingContextText) {
-        addDraftContext(draftId, pendingContextText)
+      if (isChatInNodeMode && pendingContextText && pendingContextSourceNodeId) {
+        addDraftContext(draftId, pendingContextText, pendingContextSourceNodeId)
         setIsChatInNodeMode(false)
         setPendingContextText(null)
+        setPendingContextSourceNodeId(null)
         setIsLockMode(false)
       }
     },
-    [isChatInNodeMode, pendingContextText, addDraftContext]
+    [isChatInNodeMode, pendingContextText, pendingContextSourceNodeId, addDraftContext]
   )
 
   const handleCancelChatInNodeMode = useCallback(() => {
     setIsChatInNodeMode(false)
     setPendingContextText(null)
+    setPendingContextSourceNodeId(null)
   }, [])
 
   // Sync React Flow nodes
