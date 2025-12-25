@@ -41,7 +41,9 @@
     padding: 0.45rem 0.7rem;
     font-size: 0.8rem;
     max-width: 100%;
+    min-width: 0;
     word-break: break-word;
+    box-sizing: border-box;
 }
 
 .qa-bubble--user {
@@ -52,15 +54,46 @@
 }
 
 .qa-bubble--ai {
-    align-self: flex-start;
+    align-self: stretch;
     background-color: var(--color-node-ai, #e5e7eb);
     color: var(--color-node-ai-text, #111827);
     transition: background-color 0.4s ease, color 0.4s ease;
+    overflow: hidden;
 }
 
 .qa-bubble--ai.selectable {
     cursor: text;
     user-select: text;
+}
+
+/* Code blocks inside AI bubbles - constrain width and enable scrolling */
+.qa-bubble--ai pre {
+    display: block;
+    max-width: 100%;
+    width: 100%;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+}
+
+.qa-bubble--ai code {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.75rem;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+/* Inline code (not in pre) should wrap */
+.qa-bubble--ai :not(pre)>code {
+    background-color: rgba(0, 0, 0, 0.08);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .qa-bubble-row {
