@@ -12,14 +12,14 @@ export function useDraftNodes(conversationId: string) {
         setDrafts([])
     }, [conversationId])
 
-    const createDraft = useCallback((anchorNodeId: string | null, fromNodeIds: string[], contextText?: string | null, sourceNodeId?: string | null) => {
+    const createDraft = useCallback((anchorNodeId: string | null, fromNodeIds: string[], contextText?: string | null, sourceNodeId?: string | null, sourceStartPos?: number, sourceEndPos?: number) => {
         setDrafts((current) => [
             ...current,
             {
                 id: crypto.randomUUID(),
                 anchorNodeId,
                 fromNodeIds,
-                pendingContexts: contextText && sourceNodeId ? [{ id: crypto.randomUUID(), text: contextText, sourceNodeId }] : [],
+                pendingContexts: contextText && sourceNodeId ? [{ id: crypto.randomUUID(), text: contextText, sourceNodeId, sourceStartPos, sourceEndPos }] : [],
             },
         ])
     }, [])
@@ -44,13 +44,13 @@ export function useDraftNodes(conversationId: string) {
         setDrafts((current) => current.filter((d) => !anchorIds.includes(d.anchorNodeId ?? d.id)))
     }, [])
 
-    const addDraftContext = useCallback((draftId: string, contextText: string, sourceNodeId: string) => {
+    const addDraftContext = useCallback((draftId: string, contextText: string, sourceNodeId: string, sourceStartPos?: number, sourceEndPos?: number) => {
         setDrafts((current) =>
             current.map((d) =>
                 d.id === draftId
                     ? {
                         ...d,
-                        pendingContexts: [...(d.pendingContexts || []), { id: crypto.randomUUID(), text: contextText, sourceNodeId }],
+                        pendingContexts: [...(d.pendingContexts || []), { id: crypto.randomUUID(), text: contextText, sourceNodeId, sourceStartPos, sourceEndPos }],
                     }
                     : d
             )

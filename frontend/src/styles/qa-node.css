@@ -336,3 +336,41 @@
     box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
     cursor: pointer;
 }
+
+/* Clickable USER context spans */
+.qa-context-block--permanent.clickable {
+    cursor: pointer;
+    transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qa-context-block--permanent.clickable:hover {
+    filter: brightness(0.9);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* Source context spans in AI text */
+.qa-context-block--source {
+    display: inline;
+    background-color: var(--color-context-source-bg, #dbeafe);
+    color: var(--color-context-source-text, #1e40af);
+    border-radius: 3px;
+    padding: 1px 4px;
+    margin: 0 2px;
+}
+
+/* Highlight animation for navigation target */
+.qa-context-block--highlight {
+    animation: context-highlight 5s ease-out;
+}
+
+@keyframes context-highlight {
+    0% {
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.8);
+        background-color: rgba(59, 130, 246, 0.3);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        background-color: transparent;
+    }
+}

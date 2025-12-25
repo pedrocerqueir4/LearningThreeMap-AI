@@ -23,12 +23,14 @@ type UseGraphNodesProps = {
         fromNodeIds: string[] | null,
         content: string,
         draftId: string,
-        contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
+        contextRanges?: { sourceNodeId: string; startPos: number; endPos: number; sourceStartPos?: number; sourceEndPos?: number }[] | null
     ) => Promise<void>
     createDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
     handleEditNode: (nodeId: string, newContent: string) => Promise<void>
     handleToggleLockMode: () => void
     handleTextSelected: (nodeId: string, rect: DOMRect) => void
+    handleNavigateToSource?: (sourceNodeId: string, highlightText?: string) => void
+    highlightTarget?: { nodeId: string; text: string } | null
 }
 
 export function useGraphNodes({
@@ -43,6 +45,8 @@ export function useGraphNodes({
     handleEditNode,
     handleToggleLockMode,
     handleTextSelected,
+    handleNavigateToSource,
+    highlightTarget,
 }: UseGraphNodesProps) {
     const { getNodes } = useReactFlow()
 
@@ -126,6 +130,10 @@ export function useGraphNodes({
                     onToggleLockMode: handleToggleLockMode,
                     onTextSelected: handleTextSelected,
                     contextRanges: p.userNode.context_ranges ?? null,
+                    onNavigateToSource: handleNavigateToSource,
+                    highlightText: highlightTarget?.nodeId === p.id
+                        ? highlightTarget.text
+                        : null,
                 },
                 selected:
                     selectionMode !== 'none' &&
@@ -291,6 +299,8 @@ export function useGraphNodes({
         isLockMode,
         handleToggleLockMode,
         handleTextSelected,
+        handleNavigateToSource,
+        highlightTarget,
         getNodes,
     ])
 

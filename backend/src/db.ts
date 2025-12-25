@@ -58,6 +58,8 @@ export type ContextRange = {
   sourceNodeId: string
   startPos: number
   endPos: number
+  sourceStartPos?: number  // Position in source node's AI text where context was extracted
+  sourceEndPos?: number    // End position in source node's AI text
 }
 export type GraphDelta = { newNodes: GraphNode[]; newEdges: GraphEdge[] }
 export type NodePositionUpdate = { nodeId: string; x: number; y: number }

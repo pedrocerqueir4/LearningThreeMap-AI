@@ -74,6 +74,15 @@ function InnerConversationGraph({
   const [pendingContextSourceNodeId, setPendingContextSourceNodeId] = useState<string | null>(
     null
   )
+  // Pending source positions for chat-in-node mode
+  const [pendingSourceStartPos, setPendingSourceStartPos] = useState<number | undefined>(undefined)
+  const [pendingSourceEndPos, setPendingSourceEndPos] = useState<number | undefined>(undefined)
+
+  // Highlight target for navigation feedback (clears after 2 seconds)
+  const [highlightTarget, setHighlightTarget] = useState<{
+    nodeId: string
+    text: string
+  } | null>(null)
 
   // Ref to save viewport state before entering chat mode (for restoration when closing)
   const viewportBeforeChatModeRef = useRef<{
@@ -151,6 +160,44 @@ function InnerConversationGraph({
     })
   }, [])
 
+  // Ref for pairs to avoid circular dependency
+  const pairsRef = useRef<Pair[]>([])
+
+  // Navigate to source node when clicking on context span
+  const handleNavigateToSource = useCallback(
+    (sourceNodeId: string, highlightText?: string) => {
+      // Find the pair that contains this source node
+      // sourceNodeId can be: pair.id, anchorNodeId, or aiNode.id
+      const targetPair = pairsRef.current.find(
+        (p) => p.id === sourceNodeId || p.anchorNodeId === sourceNodeId || p.aiNode?.id === sourceNodeId
+      )
+      if (!targetPair) {
+        console.warn('Could not find target pair for sourceNodeId:', sourceNodeId)
+        return
+      }
+
+      // Use fitView to navigate to the target node
+      fitView({
+        nodes: [{ id: targetPair.id }],
+        duration: 300,
+        padding: 0.5,
+      })
+
+      // Set highlight target if we have highlight text
+      if (highlightText) {
+        setHighlightTarget({
+          nodeId: targetPair.id,
+          text: highlightText,
+        })
+        // Clear highlight after 5 seconds
+        setTimeout(() => {
+          setHighlightTarget(null)
+        }, 5000) // TO-DO: correlat this to the CSS animation duration
+      }
+    },
+    [fitView]
+  )
+
   // Use the hook to get graph nodes/edges/pairs
   const { computedNodes, edges, pairs } = useGraphNodes({
     graph,
@@ -164,7 +211,12 @@ function InnerConversationGraph({
     handleEditNode,
     handleToggleLockMode,
     handleTextSelected,
+    handleNavigateToSource,
+    highlightTarget,
   })
+
+  // Update pairs ref after hook call
+  pairsRef.current = pairs
 
   // Close dropdown handler
   const handleCloseDropdown = useCallback(() => {
@@ -190,8 +242,20 @@ function InnerConversationGraph({
     const pair = pairs.find((p) => p.id === nodeId)
     const anchorNodeId = pair?.anchorNodeId ?? nodeId
 
-    // Pass the nodeId as sourceNodeId for the context
-    createDraft(anchorNodeId, [anchorNodeId], text, nodeId)
+    // Compute source positions from the AI text
+    let sourceStartPos: number | undefined
+    let sourceEndPos: number | undefined
+    const aiText = pair?.aiNode?.label
+    if (aiText && text) {
+      const idx = aiText.indexOf(text)
+      if (idx >= 0) {
+        sourceStartPos = idx
+        sourceEndPos = idx + text.length
+      }
+    }
+
+    // Pass the nodeId as sourceNodeId for the context, along with source positions
+    createDraft(anchorNodeId, [anchorNodeId], text, nodeId, sourceStartPos, sourceEndPos)
     setIsLockMode(false)
   }, [selectedNodeId, pairs, createDraft])
 
@@ -201,27 +265,44 @@ function InnerConversationGraph({
 
     if (!text) return
 
+    // Compute source positions from the AI text
+    const pair = pairs.find((p) => p.id === selectedNodeId)
+    const aiText = pair?.aiNode?.label
+    let sourceStartPos: number | undefined
+    let sourceEndPos: number | undefined
+    if (aiText) {
+      const idx = aiText.indexOf(text)
+      if (idx >= 0) {
+        sourceStartPos = idx
+        sourceEndPos = idx + text.length
+      }
+    }
+
     setPendingContextText(text)
     setPendingContextSourceNodeId(selectedNodeId)
+    setPendingSourceStartPos(sourceStartPos)
+    setPendingSourceEndPos(sourceEndPos)
     setIsChatInNodeMode(true)
 
     setSelectedNodeId(null)
     setDropdownPosition(null)
     window.getSelection()?.removeAllRanges()
     setIsLockMode(false)
-  }, [selectedNodeId])
+  }, [selectedNodeId, pairs])
 
   const handleDraftClickForContext = useCallback(
     (draftId: string) => {
       if (isChatInNodeMode && pendingContextText && pendingContextSourceNodeId) {
-        addDraftContext(draftId, pendingContextText, pendingContextSourceNodeId)
+        addDraftContext(draftId, pendingContextText, pendingContextSourceNodeId, pendingSourceStartPos, pendingSourceEndPos)
         setIsChatInNodeMode(false)
         setPendingContextText(null)
         setPendingContextSourceNodeId(null)
+        setPendingSourceStartPos(undefined)
+        setPendingSourceEndPos(undefined)
         setIsLockMode(false)
       }
     },
-    [isChatInNodeMode, pendingContextText, pendingContextSourceNodeId, addDraftContext]
+    [isChatInNodeMode, pendingContextText, pendingContextSourceNodeId, pendingSourceStartPos, pendingSourceEndPos, addDraftContext]
   )
 
   const handleCancelChatInNodeMode = useCallback(() => {

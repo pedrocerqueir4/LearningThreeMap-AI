@@ -26,18 +26,26 @@ export type QaNodeData = {
     onToggleLockMode?: () => void
     onTextSelected?: (nodeId: string, rect: DOMRect) => void
     // Context blocks to be added to the input (for draft mode)
-    pendingContexts?: Array<{ id: string, text: string, sourceNodeId: string }>
+    pendingContexts?: Array<{ id: string, text: string, sourceNodeId: string, sourceStartPos?: number, sourceEndPos?: number }>
     // Context ranges loaded from database (for complete mode)
     contextRanges?: ContextRange[] | null
+    // Source context ranges from child nodes referencing this node's AI text
+    sourceContextRanges?: ContextRange[] | null
+    // Navigation callback for context span clicks
+    onNavigateToSource?: (sourceNodeId: string, highlightText?: string) => void
+    // Text to highlight temporarily in AI text (for navigation feedback)
+    highlightText?: string | null
 }
 
 /**
  * Context range representing a span of text referencing another node
  */
 export type ContextRange = {
-    sourceNodeId: string // TO-DO: Use to connect and move to another node
+    sourceNodeId: string
     startPos: number
     endPos: number
+    sourceStartPos?: number  // Position in source node's AI text where context was extracted
+    sourceEndPos?: number    // End position in source node's AI text
 }
 
 
