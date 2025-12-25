@@ -158,9 +158,16 @@ app.post('/api/conversations/:conversationId/viewport', async (c) => {
     zoom?: number
   }
 
-  // Validate viewport values
-  if (typeof body.x !== 'number' || typeof body.y !== 'number' || typeof body.zoom !== 'number') {
-    return c.json({ error: 'Invalid viewport data' }, 400)
+  // Validate viewport values - must be finite numbers (not NaN or Infinity)
+  if (
+    typeof body.x !== 'number' ||
+    typeof body.y !== 'number' ||
+    typeof body.zoom !== 'number' ||
+    !isFinite(body.x) ||
+    !isFinite(body.y) ||
+    !isFinite(body.zoom)
+  ) {
+    return c.json({ error: 'Invalid viewport data: values must be finite numbers' }, 400)
   }
 
   try {

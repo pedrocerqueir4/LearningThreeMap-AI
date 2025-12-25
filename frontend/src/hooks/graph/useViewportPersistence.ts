@@ -63,11 +63,20 @@ export function useViewportPersistence(conversationId: string) {
         }
         saveViewportTimeoutRef.current = setTimeout(() => {
             const viewport = getViewport()
-            void api.updateConversationViewport(conversationId, {
-                x: viewport.x,
-                y: viewport.y,
-                zoom: viewport.zoom,
-            })
+            // Only save if all values are valid finite numbers
+            if (
+                isFinite(viewport.x) &&
+                isFinite(viewport.y) &&
+                isFinite(viewport.zoom)
+            ) {
+                void api.updateConversationViewport(conversationId, {
+                    x: viewport.x,
+                    y: viewport.y,
+                    zoom: viewport.zoom,
+                })
+            } else {
+                console.warn('Skipping viewport save: invalid values detected', viewport)
+            }
         }, 500)
     }, [conversationId, getViewport])
 
@@ -81,11 +90,18 @@ export function useViewportPersistence(conversationId: string) {
         return () => {
             if (viewportRestoredRef.current) {
                 const currentViewport = getViewport()
-                void api.updateConversationViewport(conversationId, {
-                    x: currentViewport.x,
-                    y: currentViewport.y,
-                    zoom: currentViewport.zoom,
-                })
+                // Only save if all values are valid finite numbers
+                if (
+                    isFinite(currentViewport.x) &&
+                    isFinite(currentViewport.y) &&
+                    isFinite(currentViewport.zoom)
+                ) {
+                    void api.updateConversationViewport(conversationId, {
+                        x: currentViewport.x,
+                        y: currentViewport.y,
+                        zoom: currentViewport.zoom,
+                    })
+                }
             }
         }
     }, [conversationId, getViewport])
