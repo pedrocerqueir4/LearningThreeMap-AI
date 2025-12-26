@@ -84,6 +84,9 @@ function InnerConversationGraph({
     text: string
   } | null>(null)
 
+  // Highlight text for chat mode navigation
+  const [chatHighlightText, setChatHighlightText] = useState<string | null>(null)
+
   // Ref to save viewport state before entering chat mode (for restoration when closing)
   const viewportBeforeChatModeRef = useRef<{
     x: number
@@ -196,6 +199,23 @@ function InnerConversationGraph({
       }
     },
     [fitView]
+  )
+
+  // Navigate within chat mode with highlighting
+  const handleChatNavigateWithHighlight = useCallback(
+    (nodeId: string, highlightText?: string) => {
+      // Switch the chat view to the target node
+      setExpandedNodeId(nodeId)
+      // Set the highlight text to trigger highlighting in the AI response
+      setChatHighlightText(highlightText || null)
+      // Clear highlight after 5 seconds (matching the cleanup timeout)
+      if (highlightText) {
+        setTimeout(() => {
+          setChatHighlightText(null)
+        }, 5000)
+      }
+    },
+    []
   )
 
   // Use the hook to get graph nodes/edges/pairs
@@ -551,6 +571,8 @@ function InnerConversationGraph({
           onNavigate={setExpandedNodeId}
           onSendDraft={handleSendFromDraft}
           onSaveEdit={handleEditNode}
+          highlightText={chatHighlightText}
+          onNavigateWithHighlight={handleChatNavigateWithHighlight}
         />
       ) : (
         <>
