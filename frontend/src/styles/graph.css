@@ -97,17 +97,26 @@
 /* Expanded Chat Mode */
 .graph-expanded-chat {
     position: relative;
-    display: flex;
-    flex-direction: column;
     height: 100%;
-    padding: 1.5rem 1.75rem;
+    padding: 0;
     animation: graph-chat-in 0.18s ease-out;
 }
 
 .graph-expanded-chat-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
     display: flex;
     justify-content: flex-start;
-    margin-bottom: 1rem;
+    padding: 1.5rem 1.75rem 1rem 1.75rem;
+    background: transparent;
+    pointer-events: none;
+}
+
+.graph-expanded-chat-header>* {
+    pointer-events: auto;
 }
 
 .graph-expanded-close-button {
@@ -126,13 +135,18 @@
 }
 
 .graph-expanded-chat-body {
-    flex: 1 1 auto;
-    min-height: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
-    padding-right: 0.75rem;
+    padding: 4.5rem 1.75rem 2rem 1.75rem;
+    box-sizing: border-box;
 }
 
 .graph-expanded-chat-item {
