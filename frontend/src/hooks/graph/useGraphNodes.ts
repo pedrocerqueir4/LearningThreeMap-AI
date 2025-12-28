@@ -154,9 +154,9 @@ export function useGraphNodes({
             }
         }
 
-        // Build node rectangles for collision detection using actual dimensions
+        // Build node rectangles for collision detection using actual dimensions and current positions
         const getNodeRect = (node: Node<QaNodeData>): NodeRect => {
-            // First try React Flow snapshot, then fall back to cached dimensions
+            // First try React Flow snapshot for current position and dimensions
             const rfNode = rfNodesSnapshot.find((n) => n.id === node.id)
             const cachedDims = measuredDimensionsRef.current.get(node.id)
 
@@ -164,9 +164,14 @@ export function useGraphNodes({
             const width = rfNode?.width ?? cachedDims?.width ?? DEFAULT_NODE_WIDTH
             const height = rfNode?.height ?? cachedDims?.height ?? DEFAULT_NODE_HEIGHT
 
+            // Use current React Flow position if available (for dragged nodes not yet saved)
+            // Otherwise fall back to the node's position from database
+            const x = rfNode?.position?.x ?? node.position.x
+            const y = rfNode?.position?.y ?? node.position.y
+
             return {
-                x: node.position.x,
-                y: node.position.y,
+                x,
+                y,
                 width: width,
                 height: height,
             }
