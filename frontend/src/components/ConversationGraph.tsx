@@ -383,6 +383,13 @@ function InnerConversationGraph({
 
       if (selectionMode === 'none') return
 
+      // For draft nodes, use their own ID for selection (not the parent's anchor)
+      // This prevents selecting the parent node when clicking on a draft
+      if (node.data.mode === 'draft') {
+        toggleNodeSelection(node.id)
+        return
+      }
+
       const anchor = node.data.anchorNodeId ?? node.id
       toggleNodeSelection(anchor)
     },
@@ -451,36 +458,58 @@ function InnerConversationGraph({
     }
 
     try {
-      const rawNodes = graph?.nodes ?? []
-      const rawEdges = graph?.edges ?? []
-      const nodeById = new Map<string, GraphNode>()
-      for (const n of rawNodes) nodeById.set(n.id, n)
+      // Separate draft nodes (frontend-only) from backend nodes
+      const draftIds = new Set(drafts.map(d => d.id))
+      const draftIdsToDelete: string[] = []
+      const backendIdsToDelete: string[] = []
 
-      const resolveRootId = (anchorId: string): string => {
-        const anchorNode = nodeById.get(anchorId)
-        if (!anchorNode) return anchorId
-        if (anchorNode.type === 'user') return anchorId
-
-        const incoming = rawEdges.filter((e) => e.target === anchorId)
-        for (const e of incoming) {
-          const src = nodeById.get(e.source)
-          if (src?.type === 'user') {
-            return src.id
-          }
+      for (const selectedId of selectedAnchorNodeIds) {
+        if (draftIds.has(selectedId)) {
+          draftIdsToDelete.push(selectedId)
+        } else {
+          backendIdsToDelete.push(selectedId)
         }
-        return anchorId
       }
 
-      const rootIds = Array.from(
-        new Set(selectedAnchorNodeIds.map(resolveRootId))
-      )
-
-      for (const nodeId of rootIds) {
-        await api.deleteNode(conversationId, nodeId)
+      // Delete draft nodes (frontend-only, no backend call)
+      for (const draftId of draftIdsToDelete) {
+        removeDraft(draftId)
       }
 
-      await fetchGraph(conversationId)
-      removeDraftsByAnchorIds(selectedAnchorNodeIds)
+      // Delete backend nodes
+      if (backendIdsToDelete.length > 0) {
+        const rawNodes = graph?.nodes ?? []
+        const rawEdges = graph?.edges ?? []
+        const nodeById = new Map<string, GraphNode>()
+        for (const n of rawNodes) nodeById.set(n.id, n)
+
+        const resolveRootId = (anchorId: string): string => {
+          const anchorNode = nodeById.get(anchorId)
+          if (!anchorNode) return anchorId
+          if (anchorNode.type === 'user') return anchorId
+
+          const incoming = rawEdges.filter((e) => e.target === anchorId)
+          for (const e of incoming) {
+            const src = nodeById.get(e.source)
+            if (src?.type === 'user') {
+              return src.id
+            }
+          }
+          return anchorId
+        }
+
+        const rootIds = Array.from(
+          new Set(backendIdsToDelete.map(resolveRootId))
+        )
+
+        for (const nodeId of rootIds) {
+          await api.deleteNode(conversationId, nodeId)
+        }
+
+        await fetchGraph(conversationId)
+        // Remove any drafts that were anchored to deleted backend nodes
+        removeDraftsByAnchorIds(backendIdsToDelete)
+      }
     } catch {
       // Error handling
     }
@@ -493,7 +522,9 @@ function InnerConversationGraph({
     fetchGraph,
     graph,
     clearSelection,
+    removeDraft,
     removeDraftsByAnchorIds,
+    drafts,
   ])
 
   const handleCancelDelete = useCallback(() => {

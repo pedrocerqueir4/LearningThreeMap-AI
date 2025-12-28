@@ -234,7 +234,7 @@ export function useGraphNodes({
                 },
                 selected:
                     selectionMode !== 'none' &&
-                    selectedAnchorNodeIds.includes(draft.anchorNodeId ?? draft.id),
+                    selectedAnchorNodeIds.includes(draft.id),
             }
         })
 
