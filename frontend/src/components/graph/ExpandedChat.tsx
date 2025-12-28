@@ -251,6 +251,18 @@ export function ExpandedChat({
             parent.replaceChild(fragment, node)
         }
 
+        // Scroll the first highlighted span into view
+        const firstHighlight = container.querySelector('.qa-context-block--highlight')
+        if (firstHighlight) {
+            // Use setTimeout to ensure DOM has updated
+            setTimeout(() => {
+                firstHighlight.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                })
+            }, 50)
+        }
+
         // Cleanup: remove highlight spans after animation (5s to match timeout)
         return () => {
             const highlightSpans = container.querySelectorAll('.qa-context-block--highlight')
