@@ -5,6 +5,7 @@ import { useConversationStore } from './store/conversations'
 import { useGraphStore } from './store/graph'
 import { useMessageStore } from './store/messages'
 import { useThemeStore } from './store/theme'
+import { useSettingsStore } from './store/settings'
 import { ConversationGraph } from './components/ConversationGraph'
 
 function App() {
@@ -26,6 +27,8 @@ function App() {
   const { sendMessage } = useMessageStore()
 
   const { mode, setMode, colorTheme, setColorTheme } = useThemeStore()
+
+  const { rateLimitPerMinute, setRateLimitPerMinute } = useSettingsStore()
 
   const [menuConversationId, setMenuConversationId] = useState<string | null>(null)
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
@@ -415,6 +418,38 @@ function App() {
                       tabIndex={0}
                     >
                       <div className="toggle-switch-slider" />
+                    </div>
+                  </div>
+                </div>
+                <div className="setting-section">
+                  <label className="setting-label">AI Rate Limiting</label>
+                  <div className="rate-limit-input-container">
+                    <div className="rate-limit-input-row">
+                      <input
+                        type="text"
+                        className="rate-limit-input"
+                        value={rateLimitPerMinute === null ? '' : rateLimitPerMinute}
+                        onChange={(e) => {
+                          const val = e.target.value.trim()
+                          if (val === '') {
+                            setRateLimitPerMinute(null)
+                          } else {
+                            const num = parseInt(val, 10)
+                            if (!isNaN(num) && num >= 0) {
+                              setRateLimitPerMinute(num)
+                            }
+                          }
+                        }}
+                        placeholder="Unlimited"
+                      />
+                      <span className="rate-limit-unit">requests/min</span>
+                    </div>
+                    <div className="rate-limit-hint">
+                      {rateLimitPerMinute === null
+                        ? '✅ Unlimited'
+                        : rateLimitPerMinute === 0
+                          ? '🚫 AI calls blocked'
+                          : `⏱️ ${rateLimitPerMinute} per minute`}
                     </div>
                   </div>
                 </div>

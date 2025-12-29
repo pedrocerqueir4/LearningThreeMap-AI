@@ -90,12 +90,13 @@
 
 ## Phase 10 – Performance
 
-- [X] Add rate limiting for AI calls.
+- [X] Add user rate limiting for AI calls.
+- [ ] Add rate limiting for AI calls for multiple users (Implement after Phase 13).
 - [ ] AI Response:
     - [ ] Streaming AI responses - The user can select if they want to receive the AI response in real-time or wait for the full response (For now only using GEMINI).
     - [ ] Optimisct UI Updates - The UI should update optimistically, meaning that the UI should update before  the API call is made and the user should see the changes in the nodes (nodes will load before the AI response).
 - [ ] Virtualization - The graph should be virtualized to improve performance, should have a area bigger than the view generated.
-- [ ] Add KV-based caching for AI responses (theoretical idea).
+- [ ] Add KV-based caching for AI responses (theoretical idea - implement after Phase 14).
 
 ## Phase 11 - API accessibility
 
