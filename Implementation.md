@@ -83,17 +83,22 @@
 ## Phase 9 - AI interaction & Chat mode
 
 - [X] Define the AI agent (configure agent type via system prompt).
-- [X] Allow editing of the user’s submitted question.
+- [X] Allow editing of the user’s submitted question.a
 - [X] Add chat mode edition and draft nodes in chat mode.
 - [X] Move to next nodes in chat mode.
 - [X] Use part of the question to generate the AI response, reforcing question.
 
 ## Phase 10 – Performance
 
-- [ ] Add rate limiting for AI calls.
+- [X] Add rate limiting for AI calls.
+- [ ] AI Response:
+    - [ ] Streaming AI responses - The user can select if they want to receive the AI response in real-time or wait for the full response (For now only using GEMINI).
+    - [ ] Optimisct UI Updates - The UI should update optimistically, meaning that the UI should update before  the API call is made and the user should see the changes in the nodes (nodes will load before the AI response).
+- [ ] Virtualization - The graph should be virtualized to improve performance, should have a area bigger than the view generated.
 - [ ] Add KV-based caching for AI responses (theoretical idea).
 
 ## Phase 11 - API accessibility
+
 - [ ] Provide easier access to the API.
 
 ## Phase 12 - Initial test functions
@@ -118,10 +123,13 @@ Note: Implement feature from phase 6 before this phase.
 - [ ] Share Conversations between groups.
 - [ ] Previligies for each user (Only view, edit, delete, share).
 
-## Phase 16 - Advanced features
+## Phase 16 - Image
+- [ ] User can upload an image to the conversation.
+
+## Phase 17 - Advanced features
 - [ ] Automated division of questions, one question can divide in multiple questions (user can accept or cancel)
 
-## Phase 16 – Deployment
+## Phase 18 – Deployment
 
 - [ ] Deploy frontend to Cloudflare Pages.
 - [ ] Deploy backend to Cloudflare Workers.
