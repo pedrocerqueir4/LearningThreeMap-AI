@@ -401,37 +401,21 @@ export async function createMessageWithAI(
 
   // Use draftNodeId if provided, otherwise create new node
   let userNode: GraphNode
-  let userNodeIsNew = true
 
   if (draftNodeId) {
-    // Verify draft node exists
-    const existingDraft = await db
-      .prepare('SELECT * FROM nodes WHERE id = ? AND conversation_id = ?')
-      .bind(draftNodeId, conversationId)
-      .first<GraphNode>()
-
-    if (existingDraft) {
-      // Update existing draft node
-      await db
-        .prepare('UPDATE nodes SET message_id = ?, label = ? WHERE id = ? AND conversation_id = ?')
-        .bind(userMessage.id, content, draftNodeId, conversationId)
-        .run()
-
-      userNode = createNode(conversationId, userMessage.id, 'user', content)
-      userNode.id = draftNodeId
-      userNode.pos_x = existingDraft.pos_x
-      userNode.pos_y = existingDraft.pos_y
-      userNodeIsNew = false
-    } else {
-      // Draft node doesn't exist, create new one
-      userNode = createNode(conversationId, userMessage.id, 'user', content)
-      if (position) {
-        userNode.pos_x = position.x
-        userNode.pos_y = position.y
-      }
-      await insertNode(db, userNode)
-      userNodeIsNew = true
+    // Use the draft node ID directly - draft nodes only exist in frontend state,
+    // so we create a new DB node with the same ID to maintain visual continuity
+    userNode = createNode(conversationId, userMessage.id, 'user', content)
+    userNode.id = draftNodeId // Reuse the draft's ID
+    if (position) {
+      userNode.pos_x = position.x
+      userNode.pos_y = position.y
     }
+    // Store context ranges if provided
+    if (contextRanges && contextRanges.length > 0) {
+      userNode.context_ranges = contextRanges
+    }
+    await insertNode(db, userNode)
   } else {
     userNode = createNode(conversationId, userMessage.id, 'user', content)
     if (position) {
@@ -439,7 +423,6 @@ export async function createMessageWithAI(
       userNode.pos_y = position.y
     }
     await insertNode(db, userNode)
-    userNodeIsNew = true
   }
 
   const aiNode = createNode(conversationId, aiMessage.id, 'ai', aiContent)
@@ -451,8 +434,8 @@ export async function createMessageWithAI(
 
   const newEdges: GraphEdge[] = []
 
-  // Only create edges from previous nodes to user node if user node is new
-  if (userNodeIsNew && prevNodeIds.length > 0) {
+  // Create edges from previous nodes to user node
+  if (prevNodeIds.length > 0) {
     for (const prevNodeId of prevNodeIds) {
       const edgeFromPrevToUser = createEdge(conversationId, prevNodeId, userNode.id)
       newEdges.push(edgeFromPrevToUser)
@@ -465,7 +448,7 @@ export async function createMessageWithAI(
   await insertEdge(db, edgeUserToAi)
 
   const graphDelta: GraphDelta = {
-    newNodes: userNodeIsNew ? [userNode, aiNode] : [aiNode],
+    newNodes: [userNode, aiNode],
     newEdges,
   }
 

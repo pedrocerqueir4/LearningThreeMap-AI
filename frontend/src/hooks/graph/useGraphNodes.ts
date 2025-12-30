@@ -181,7 +181,11 @@ export function useGraphNodes({
         const occupiedRects: NodeRect[] = reactFlowNodes.map(getNodeRect)
 
         // Add local draft nodes (empty question boxes)
-        const draftNodes: Node<QaNodeData>[] = drafts.map((draft, index) => {
+        // Filter out drafts that already exist in the backend graph (their ID was reused for the user node)
+        const backendNodeIds = new Set(rawNodes.map(n => n.id))
+        const activeDrafts = drafts.filter(draft => !backendNodeIds.has(draft.id))
+
+        const draftNodes: Node<QaNodeData>[] = activeDrafts.map((draft, index) => {
             // Default dimensions for new draft nodes
             const draftWidth = DEFAULT_NODE_WIDTH
             const draftHeight = DEFAULT_NODE_HEIGHT
@@ -267,7 +271,7 @@ export function useGraphNodes({
         }
 
         // Local edges from parent QA pair to draft nodes
-        for (const draft of drafts) {
+        for (const draft of activeDrafts) {
             const sourceAnchors =
                 draft.fromNodeIds && draft.fromNodeIds.length
                     ? draft.fromNodeIds

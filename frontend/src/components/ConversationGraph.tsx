@@ -130,10 +130,11 @@ function InnerConversationGraph({
       const position = draftNode
         ? { x: draftNode.position.x, y: draftNode.position.y }
         : null
+      // Don't remove draft here - the backend creates a node with the same ID,
+      // so the graph refresh will naturally replace the draft with the real node
       await onSendFromNode(fromNodeIds, content, draftId, position, contextRanges)
-      removeDraft(draftId)
     },
-    [onSendFromNode, removeDraft, getNodes]
+    [onSendFromNode, getNodes]
   )
 
   const handleEditNode = useCallback(
