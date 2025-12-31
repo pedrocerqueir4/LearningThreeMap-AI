@@ -119,6 +119,8 @@ function InnerConversationGraph({
   const { onMoveEnd } = useViewportPersistence(conversationId)
   const { onNodeDragStop } = useNodePositionSaver(conversationId)
 
+  const { addOptimisticNodes, removeOptimisticNode, setNodeError } = useGraphStore()
+
   const handleSendFromDraft = useCallback(
     async (
       fromNodeIds: string[] | null,
@@ -130,11 +132,56 @@ function InnerConversationGraph({
       const position = draftNode
         ? { x: draftNode.position.x, y: draftNode.position.y }
         : null
-      // Don't remove draft here - the backend creates a node with the same ID,
-      // so the graph refresh will naturally replace the draft with the real node
-      await onSendFromNode(fromNodeIds, content, draftId, position, contextRanges)
+
+      // Remove draft from the drafts array first
+      removeDraft(draftId)
+
+      // Create optimistic user node immediately
+      const optimisticUserNode = {
+        id: draftId,
+        conversation_id: conversationId,
+        message_id: null,
+        type: 'user' as const,
+        label: content,
+        created_at: new Date().toISOString(),
+        pos_x: position?.x ?? 0,
+        pos_y: position?.y ?? 0,
+        context_ranges: contextRanges ?? null,
+        isOptimistic: true,
+      }
+
+      // Create optimistic edges from parent nodes
+      const effectiveFromNodeIds = fromNodeIds && fromNodeIds.length > 0
+        ? fromNodeIds
+        : []
+      const optimisticEdges = effectiveFromNodeIds.map((parentId) => ({
+        id: `optimistic-edge-${parentId}-${draftId}`,
+        conversation_id: conversationId,
+        source: parentId,
+        target: draftId,
+        created_at: new Date().toISOString(),
+      }))
+
+      // Add optimistic nodes/edges to the graph store immediately
+      addOptimisticNodes(conversationId, [optimisticUserNode], optimisticEdges)
+
+      try {
+        // Call backend API (this will create real nodes and return)
+        await onSendFromNode(fromNodeIds, content, draftId, position, contextRanges)
+      } catch (error) {
+        // On error, set error message on the node
+        const errorMessage = error instanceof Error
+          ? error.message
+          : 'Failed to send message. Please try again.'
+        setNodeError(conversationId, draftId, errorMessage)
+
+        // Remove the error node after 5 seconds
+        setTimeout(() => {
+          removeOptimisticNode(conversationId, draftId)
+        }, 5000)
+      }
     },
-    [onSendFromNode, getNodes]
+    [onSendFromNode, getNodes, conversationId, addOptimisticNodes, removeOptimisticNode, setNodeError, removeDraft]
   )
 
   const handleEditNode = useCallback(

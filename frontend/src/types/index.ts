@@ -21,6 +21,10 @@ export type QaNodeData = {
     onCreateDraftBelow: (nodeId: string, anchorNodeId: string | null) => void
     onEdit: (nodeId: string, newContent: string) => Promise<void>
     isZoomed: boolean
+    // Loading state for optimistic UI - when waiting for AI response
+    isLoading?: boolean
+    // Error message when backend call fails
+    errorMessage?: string | null
     // Lock mode for text selection
     isLocked?: boolean
     onToggleLockMode?: () => void

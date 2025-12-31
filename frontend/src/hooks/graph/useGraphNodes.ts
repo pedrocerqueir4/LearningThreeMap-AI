@@ -111,6 +111,9 @@ export function useGraphNodes({
                 position = { x: p.userNode.pos_x, y: p.userNode.pos_y }
             }
 
+            // Node is loading if it's optimistic (waiting for AI response)
+            const isLoading = p.userNode.isOptimistic === true
+
             return {
                 id: p.id,
                 type: 'qa',
@@ -126,6 +129,8 @@ export function useGraphNodes({
                     onCreateDraftBelow: createDraftBelow,
                     onEdit: handleEditNode,
                     isZoomed: zoomedNodeId === p.id,
+                    isLoading,
+                    errorMessage: p.userNode.errorMessage ?? null,
                     isLocked: isLockMode,
                     onToggleLockMode: handleToggleLockMode,
                     onTextSelected: handleTextSelected,

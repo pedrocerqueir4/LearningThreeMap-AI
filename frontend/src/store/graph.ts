@@ -12,6 +12,10 @@ export type GraphNode = {
   pos_x: number | null
   pos_y: number | null
   context_ranges: ContextRange[] | null
+  // Flag for optimistic UI - temporary node before backend confirmation
+  isOptimistic?: boolean
+  // Error message when backend call fails
+  errorMessage?: string | null
 }
 
 export type GraphEdge = {
@@ -38,6 +42,16 @@ type GraphActions = {
     conversationId: string,
     positions: { nodeId: string; x: number; y: number }[],
   ) => Promise<void>
+  // Optimistic UI: add nodes immediately before backend responds
+  addOptimisticNodes: (
+    conversationId: string,
+    nodes: GraphNode[],
+    edges: GraphEdge[],
+  ) => void
+  // Remove optimistic node (if needed for error rollback)
+  removeOptimisticNode: (conversationId: string, nodeId: string) => void
+  // Set error message on a specific node
+  setNodeError: (conversationId: string, nodeId: string, errorMessage: string | null) => void
 }
 
 export const useGraphStore = create<GraphState & GraphActions>((set) => ({
@@ -128,5 +142,55 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       }
     })
     await api.updateNodePositions(conversationId, positions)
+  },
+  addOptimisticNodes: (
+    conversationId: string,
+    nodes: GraphNode[],
+    edges: GraphEdge[],
+  ) => {
+    set((state) => {
+      const existing = state.graphByConversationId[conversationId] ?? { nodes: [], edges: [] }
+      return {
+        graphByConversationId: {
+          ...state.graphByConversationId,
+          [conversationId]: {
+            nodes: [...existing.nodes, ...nodes],
+            edges: [...existing.edges, ...edges],
+          },
+        },
+      }
+    })
+  },
+  removeOptimisticNode: (conversationId: string, nodeId: string) => {
+    set((state) => {
+      const existing = state.graphByConversationId[conversationId]
+      if (!existing) return {}
+      return {
+        graphByConversationId: {
+          ...state.graphByConversationId,
+          [conversationId]: {
+            nodes: existing.nodes.filter((n) => n.id !== nodeId),
+            edges: existing.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+          },
+        },
+      }
+    })
+  },
+  setNodeError: (conversationId: string, nodeId: string, errorMessage: string | null) => {
+    set((state) => {
+      const existing = state.graphByConversationId[conversationId]
+      if (!existing) return {}
+      return {
+        graphByConversationId: {
+          ...state.graphByConversationId,
+          [conversationId]: {
+            ...existing,
+            nodes: existing.nodes.map((n) =>
+              n.id === nodeId ? { ...n, errorMessage } : n
+            ),
+          },
+        },
+      }
+    })
   },
 }))

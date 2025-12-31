@@ -512,6 +512,31 @@ export function QaNode({ data }: NodeProps<QaNodeData>) {
                             )
                         )}
 
+                        {/* Error message for failed backend calls */}
+                        {data.errorMessage && !isEditing && (
+                            <div className="qa-bubble qa-bubble--ai qa-bubble--error">
+                                <div className="qa-error-indicator">
+                                    <span className="qa-error-icon">⚠️</span>
+                                    <span className="qa-error-text">{data.errorMessage}</span>
+                                </div>
+                                <div className="qa-error-hint">This message will disappear shortly...</div>
+                            </div>
+                        )}
+
+                        {/* Loading indicator for optimistic UI */}
+                        {data.isLoading && !data.aiText && !data.errorMessage && !isEditing && (
+                            <div className="qa-bubble qa-bubble--ai qa-bubble--loading">
+                                <div className="qa-loading-indicator">
+                                    <span className="qa-loading-dots">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </span>
+                                    <span className="qa-loading-text">Thinking...</span>
+                                </div>
+                            </div>
+                        )}
+
                         {data.aiText && !isEditing && (
                             <div
                                 ref={aiBubbleRef}
