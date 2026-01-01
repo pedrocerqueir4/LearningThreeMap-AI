@@ -12,6 +12,7 @@ import 'reactflow/dist/style.css'
 import type { GraphEdge, GraphNode } from '../store/graph'
 import type { QaNodeData } from '../types'
 import { useGraphStore } from '../store/graph'
+import { useSettingsStore } from '../store/settings'
 import { QaNode } from './QaNode'
 import { useDraftNodes } from '../hooks/useDraftNodes'
 import { useSelectionMode } from '../hooks/useSelectionMode'
@@ -97,7 +98,8 @@ function InnerConversationGraph({
   // Ref to track that we need to restore viewport after exiting chat mode
   const shouldRestoreViewportRef = useRef(false)
 
-  const { fetchGraph } = useGraphStore()
+  const { fetchGraph, addOptimisticNodes, removeOptimisticNode, setNodeError, updateStreamingAiText, finalizeStreamingNode } = useGraphStore()
+  const streamingEnabled = useSettingsStore((state) => state.streamingEnabled)
 
   const {
     drafts,
@@ -118,8 +120,6 @@ function InnerConversationGraph({
 
   const { onMoveEnd } = useViewportPersistence(conversationId)
   const { onNodeDragStop } = useNodePositionSaver(conversationId)
-
-  const { addOptimisticNodes, removeOptimisticNode, setNodeError } = useGraphStore()
 
   const handleSendFromDraft = useCallback(
     async (
@@ -165,23 +165,58 @@ function InnerConversationGraph({
       // Add optimistic nodes/edges to the graph store immediately
       addOptimisticNodes(conversationId, [optimisticUserNode], optimisticEdges)
 
-      try {
-        // Call backend API (this will create real nodes and return)
-        await onSendFromNode(fromNodeIds, content, draftId, position, contextRanges)
-      } catch (error) {
-        // On error, set error message on the node
-        const errorMessage = error instanceof Error
-          ? error.message
-          : 'Failed to send message. Please try again.'
-        setNodeError(conversationId, draftId, errorMessage)
-
-        // Remove the error node after 5 seconds
-        setTimeout(() => {
-          removeOptimisticNode(conversationId, draftId)
-        }, 5000)
+      if (streamingEnabled) {
+        // Use streaming API
+        try {
+          await api.sendMessageStream(
+            conversationId,
+            content,
+            {
+              onAIChunk: (_chunk, fullContent) => {
+                // Update the streaming AI text as it arrives
+                updateStreamingAiText(conversationId, draftId, fullContent)
+              },
+              onComplete: (data) => {
+                // Finalize the node with real backend data
+                finalizeStreamingNode(conversationId, draftId, data.aiNode, data.edge)
+              },
+              onError: (errorMessage) => {
+                setNodeError(conversationId, draftId, errorMessage)
+                setTimeout(() => {
+                  removeOptimisticNode(conversationId, draftId)
+                }, 5000)
+              },
+            },
+            fromNodeIds,
+            draftId,
+            position,
+            contextRanges
+          )
+        } catch (error) {
+          const errorMessage = error instanceof Error
+            ? error.message
+            : 'Failed to send message. Please try again.'
+          setNodeError(conversationId, draftId, errorMessage)
+          setTimeout(() => {
+            removeOptimisticNode(conversationId, draftId)
+          }, 5000)
+        }
+      } else {
+        // Use non-streaming API (original behavior)
+        try {
+          await onSendFromNode(fromNodeIds, content, draftId, position, contextRanges)
+        } catch (error) {
+          const errorMessage = error instanceof Error
+            ? error.message
+            : 'Failed to send message. Please try again.'
+          setNodeError(conversationId, draftId, errorMessage)
+          setTimeout(() => {
+            removeOptimisticNode(conversationId, draftId)
+          }, 5000)
+        }
       }
     },
-    [onSendFromNode, getNodes, conversationId, addOptimisticNodes, removeOptimisticNode, setNodeError, removeDraft]
+    [onSendFromNode, getNodes, conversationId, addOptimisticNodes, removeOptimisticNode, setNodeError, removeDraft, streamingEnabled, updateStreamingAiText, finalizeStreamingNode]
   )
 
   const handleEditNode = useCallback(

@@ -52,6 +52,10 @@ type GraphActions = {
   removeOptimisticNode: (conversationId: string, nodeId: string) => void
   // Set error message on a specific node
   setNodeError: (conversationId: string, nodeId: string, errorMessage: string | null) => void
+  // Update AI text on a node (for streaming) - uses userNodeId to find/create AI node
+  updateStreamingAiText: (conversationId: string, userNodeId: string, aiText: string) => void
+  // Finalize streaming: replace optimistic nodes with real backend data
+  finalizeStreamingNode: (conversationId: string, userNodeId: string, aiNode: GraphNode, edge: GraphEdge) => void
 }
 
 export const useGraphStore = create<GraphState & GraphActions>((set) => ({
@@ -188,6 +192,105 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
             nodes: existing.nodes.map((n) =>
               n.id === nodeId ? { ...n, errorMessage } : n
             ),
+          },
+        },
+      }
+    })
+  },
+  updateStreamingAiText: (conversationId: string, userNodeId: string, aiText: string) => {
+    set((state) => {
+      const existing = state.graphByConversationId[conversationId]
+      if (!existing) return {}
+
+      // Find the user node to get its position
+      const userNode = existing.nodes.find((n) => n.id === userNodeId)
+      if (!userNode) return {}
+
+      // Check if streaming AI node already exists
+      const streamingAiNodeId = `streaming-ai-${userNodeId}`
+      const existingAiNode = existing.nodes.find((n) => n.id === streamingAiNodeId)
+
+      if (existingAiNode) {
+        // Update existing streaming AI node
+        return {
+          graphByConversationId: {
+            ...state.graphByConversationId,
+            [conversationId]: {
+              ...existing,
+              nodes: existing.nodes.map((n) =>
+                n.id === streamingAiNodeId ? { ...n, label: aiText } : n
+              ),
+            },
+          },
+        }
+      } else {
+        // Create new streaming AI node
+        const streamingAiNode: GraphNode = {
+          id: streamingAiNodeId,
+          conversation_id: conversationId,
+          message_id: null,
+          type: 'ai',
+          label: aiText,
+          created_at: new Date().toISOString(),
+          pos_x: userNode.pos_x,
+          pos_y: userNode.pos_y,
+          context_ranges: null,
+          isOptimistic: true,
+        }
+
+        // Also clear the loading state from the user node
+        const updatedNodes = existing.nodes.map((n) =>
+          n.id === userNodeId ? { ...n, isOptimistic: false } : n
+        )
+
+        // Create edge from user to streaming AI
+        const streamingEdge: GraphEdge = {
+          id: `streaming-edge-${userNodeId}`,
+          conversation_id: conversationId,
+          source: userNodeId,
+          target: streamingAiNodeId,
+          created_at: new Date().toISOString(),
+        }
+
+        return {
+          graphByConversationId: {
+            ...state.graphByConversationId,
+            [conversationId]: {
+              nodes: [...updatedNodes, streamingAiNode],
+              edges: [...existing.edges, streamingEdge],
+            },
+          },
+        }
+      }
+    })
+  },
+  finalizeStreamingNode: (conversationId: string, userNodeId: string, aiNode: GraphNode, edge: GraphEdge) => {
+    set((state) => {
+      const existing = state.graphByConversationId[conversationId]
+      if (!existing) return {}
+
+      const streamingAiNodeId = `streaming-ai-${userNodeId}`
+      const streamingEdgeId = `streaming-edge-${userNodeId}`
+
+      // Remove streaming nodes/edges and add real ones
+      const filteredNodes = existing.nodes.filter(
+        (n) => n.id !== streamingAiNodeId
+      )
+      const filteredEdges = existing.edges.filter(
+        (e) => e.id !== streamingEdgeId
+      )
+
+      // Also clear optimistic flag from user node
+      const updatedNodes = filteredNodes.map((n) =>
+        n.id === userNodeId ? { ...n, isOptimistic: false } : n
+      )
+
+      return {
+        graphByConversationId: {
+          ...state.graphByConversationId,
+          [conversationId]: {
+            nodes: [...updatedNodes, aiNode],
+            edges: [...filteredEdges, edge],
           },
         },
       }

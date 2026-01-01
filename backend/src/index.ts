@@ -17,6 +17,7 @@ import {
   listConversations,
   getGraph,
   createMessageWithAI,
+  createUserMessageOnly,
   deleteConversation,
   updateNodePositions,
   listMessagesForNodeAncestors,
@@ -29,7 +30,7 @@ import {
   editUserNodeContent,
   addAiResponseNode,
 } from './db'
-import { generateAIResponse, getSystemInstruction, buildGeminiContents, generateConversationTitle } from './ai-service'
+import { generateAIResponse, generateAIResponseStream, getSystemInstruction, buildGeminiContents, generateConversationTitle } from './ai-service'
 import { validateConversationId, validateContent, validateTitle, parseNodeIds, parsePositions } from './validation'
 import { DEFAULT_CONVERSATION_TITLE, ERROR_MESSAGES } from './constants'
 
@@ -263,6 +264,167 @@ app.post('/api/messages', async (c) => {
   }
 
   return c.json(result, 201)
+})
+
+// Streaming messages endpoint using Server-Sent Events
+app.post('/api/messages/stream', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    conversationId?: string
+    content?: string
+    fromNodeIds?: string[]
+    draftNodeId?: string | null
+    position?: { x: number; y: number } | null
+    contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
+  }
+
+  const conversationId = validateConversationId(body.conversationId)
+  const content = validateContent(body.content)
+  const fromNodeIds = parseNodeIds(body.fromNodeIds)
+  const draftNodeId = typeof body.draftNodeId === 'string' ? body.draftNodeId.trim() || null : null
+  const position = body.position && typeof body.position.x === 'number' && typeof body.position.y === 'number'
+    ? { x: body.position.x, y: body.position.y }
+    : null
+
+  const contextRanges = Array.isArray(body.contextRanges)
+    ? body.contextRanges.filter(
+      (r): r is { sourceNodeId: string; startPos: number; endPos: number } =>
+        typeof r.sourceNodeId === 'string' &&
+        typeof r.startPos === 'number' &&
+        typeof r.endPos === 'number'
+    )
+    : null
+
+  if (!conversationId || !content) {
+    return c.json({ error: ERROR_MESSAGES.CONTENT_REQUIRED }, 400)
+  }
+
+  const apiKey = c.env.AI_API_KEY
+  if (!apiKey) {
+    // Fall back to non-streaming if no API key
+    let aiEcho = `Echo: ${content}`
+    try {
+      if (fromNodeIds.length) {
+        aiEcho = await buildEchoFromAncestors(c.env.DB, conversationId, fromNodeIds, content)
+      }
+    } catch {
+      // Ignore
+    }
+    const result = await createMessageWithAI(c.env.DB, conversationId, content, fromNodeIds, aiEcho, draftNodeId, position, contextRanges)
+    return c.json(result, 201)
+  }
+
+  // Load message history
+  let history: Awaited<ReturnType<typeof listMessagesForNodeAncestors>> = []
+  try {
+    if (fromNodeIds.length) {
+      history = await listMessagesForNodeAncestors(c.env.DB, conversationId, fromNodeIds, 20)
+    }
+  } catch (err) {
+    console.error('Failed to load message history:', err)
+  }
+
+  const systemInstruction = await getSystemInstruction(c.env.DB, conversationId)
+  const geminiContents = buildGeminiContents(history, content)
+
+  // Create user message first
+  const { userMessage, userNode, newEdges } = await createUserMessageOnly(
+    c.env.DB,
+    conversationId,
+    content,
+    fromNodeIds,
+    draftNodeId,
+    position,
+    contextRanges
+  )
+
+  // Set up SSE stream
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        // Send initial event with user message info
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'user_created',
+          userMessage,
+          userNode,
+          newEdges,
+        })}\n\n`))
+
+        // Stream AI response
+        let fullAiContent = ''
+
+        try {
+          for await (const chunk of generateAIResponseStream(apiKey, systemInstruction, geminiContents)) {
+            fullAiContent += chunk
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'ai_chunk',
+              chunk,
+              fullContent: fullAiContent,
+            })}\n\n`))
+          }
+        } catch (streamError) {
+          console.error('Streaming error:', streamError)
+          // If streaming fails, try non-streaming as fallback
+          fullAiContent = await generateAIResponse(apiKey, systemInstruction, geminiContents)
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'ai_chunk',
+            chunk: fullAiContent,
+            fullContent: fullAiContent,
+          })}\n\n`))
+        }
+
+        // Save AI message and node to database
+        const { aiMessage, aiNode, edge } = await addAiResponseNode(
+          c.env.DB,
+          conversationId,
+          userNode.id,
+          fullAiContent
+        )
+
+        // Send completion event
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'complete',
+          aiMessage,
+          aiNode,
+          edge,
+        })}\n\n`))
+
+        // Try to auto-generate title
+        try {
+          const conversation = await getConversationById(c.env.DB, conversationId)
+          if (conversation && (conversation.title.toUpperCase() === DEFAULT_CONVERSATION_TITLE.toUpperCase())) {
+            const generatedTitle = await generateConversationTitle(apiKey, content, fullAiContent)
+            await updateConversationTitle(c.env.DB, conversationId, generatedTitle)
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'title_generated',
+              title: generatedTitle,
+            })}\n\n`))
+          }
+        } catch (err) {
+          console.error('Failed to auto-generate title:', err)
+        }
+
+        controller.enqueue(encoder.encode(`data: [DONE]\n\n`))
+        controller.close()
+      } catch (error) {
+        console.error('Stream error:', error)
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        })}\n\n`))
+        controller.close()
+      }
+    }
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  })
 })
 
 app.put('/api/graph/:conversationId/nodes/:nodeId', async (c) => {

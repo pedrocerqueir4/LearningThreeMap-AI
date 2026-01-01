@@ -366,6 +366,74 @@ export async function deleteConversation(db: D1Database, conversationId: string)
   return changes > 0
 }
 
+/**
+ * Create user message and node only (for streaming - AI node added separately)
+ */
+export async function createUserMessageOnly(
+  db: D1Database,
+  conversationId: string,
+  content: string,
+  fromNodeIds?: string[] | null,
+  draftNodeId?: string | null,
+  position?: { x: number; y: number } | null,
+  contextRanges?: ContextRange[] | null,
+): Promise<{ userMessage: Message; userNode: GraphNode; newEdges: GraphEdge[] }> {
+  const userMessage = createMessage(conversationId, 'user', content, contextRanges)
+
+  // Persist message
+  await insertMessage(db, userMessage)
+
+  // Previous nodes for this conversation, if any
+  let prevNodeIds: string[] = []
+
+  if (fromNodeIds && fromNodeIds.length) {
+    const placeholders = fromNodeIds.map(() => '?').join(',')
+    const prevRes = await db
+      .prepare(
+        `SELECT id FROM nodes WHERE conversation_id = ? AND id IN (${placeholders})`,
+      )
+      .bind(conversationId, ...fromNodeIds)
+      .all<{ id: string }>()
+    prevNodeIds = ((prevRes.results || []) as { id: string }[]).map((r) => r.id)
+  }
+
+  // Use draftNodeId if provided, otherwise create new node
+  let userNode: GraphNode
+
+  if (draftNodeId) {
+    userNode = createNode(conversationId, userMessage.id, 'user', content)
+    userNode.id = draftNodeId
+    if (position) {
+      userNode.pos_x = position.x
+      userNode.pos_y = position.y
+    }
+    if (contextRanges && contextRanges.length > 0) {
+      userNode.context_ranges = contextRanges
+    }
+    await insertNode(db, userNode)
+  } else {
+    userNode = createNode(conversationId, userMessage.id, 'user', content)
+    if (position) {
+      userNode.pos_x = position.x
+      userNode.pos_y = position.y
+    }
+    await insertNode(db, userNode)
+  }
+
+  const newEdges: GraphEdge[] = []
+
+  // Create edges from previous nodes to user node
+  if (prevNodeIds.length > 0) {
+    for (const prevNodeId of prevNodeIds) {
+      const edgeFromPrevToUser = createEdge(conversationId, prevNodeId, userNode.id)
+      newEdges.push(edgeFromPrevToUser)
+      await insertEdge(db, edgeFromPrevToUser)
+    }
+  }
+
+  return { userMessage, userNode, newEdges }
+}
+
 export async function createMessageWithAI(
   db: D1Database,
   conversationId: string,

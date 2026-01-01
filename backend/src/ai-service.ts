@@ -110,6 +110,94 @@ export async function generateAIResponse(
 }
 
 /**
+ * Generate AI response with streaming (returns an async generator)
+ */
+export async function* generateAIResponseStream(
+    apiKey: string,
+    systemInstruction: string,
+    contents: GeminiContent[]
+): AsyncGenerator<string, void, unknown> {
+    // Use streamGenerateContent endpoint for streaming
+    const url = `${AI_API_BASE_URL}/${AI_MODEL}:streamGenerateContent?key=${apiKey}&alt=sse`
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents,
+        }),
+    })
+
+    if (!response.ok) {
+        const errBody = (await response.json().catch(() => null)) as { error?: { message?: string } } | null
+        const msg = errBody?.error?.message ?? `AI request failed with status ${response.status}`
+        throw new Error(msg)
+    }
+
+    if (!response.body) {
+        throw new Error('Response body is null')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+
+            // Parse SSE events from buffer
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const jsonStr = line.slice(6)
+                    if (jsonStr.trim() === '[DONE]') continue
+
+                    try {
+                        const data = JSON.parse(jsonStr) as {
+                            candidates?: { content?: { parts?: { text?: string }[] } }[]
+                        }
+                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+                        if (text) {
+                            yield text
+                        }
+                    } catch (e) {
+                        // Skip malformed JSON
+                        console.warn('Failed to parse SSE data:', e)
+                    }
+                }
+            }
+        }
+
+        // Process any remaining buffer
+        if (buffer.startsWith('data: ')) {
+            const jsonStr = buffer.slice(6)
+            if (jsonStr.trim() !== '[DONE]') {
+                try {
+                    const data = JSON.parse(jsonStr) as {
+                        candidates?: { content?: { parts?: { text?: string }[] } }[]
+                    }
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+                    if (text) {
+                        yield text
+                    }
+                } catch {
+                    // Skip
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock()
+    }
+}
+
+/**
  * Generate a short conversation title based on first exchange
  */
 export async function generateConversationTitle(

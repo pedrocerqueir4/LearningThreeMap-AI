@@ -28,7 +28,7 @@ function App() {
 
   const { mode, setMode, colorTheme, setColorTheme } = useThemeStore()
 
-  const { rateLimitPerMinute, setRateLimitPerMinute } = useSettingsStore()
+  const { rateLimitPerMinute, setRateLimitPerMinute, streamingEnabled, setStreamingEnabled } = useSettingsStore()
 
   const [menuConversationId, setMenuConversationId] = useState<string | null>(null)
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null)
@@ -451,6 +451,29 @@ function App() {
                           ? '🚫 AI calls blocked'
                           : `⏱️ ${rateLimitPerMinute} per minute`}
                     </div>
+                  </div>
+                </div>
+                <div className="setting-section">
+                  <label className="setting-label">AI Response Mode</label>
+                  <div className="dark-mode-toggle">
+                    <div className="dark-mode-label">
+                      <span>{streamingEnabled ? '⚡' : '⏳'}</span>
+                      <span>Streaming Responses</span>
+                    </div>
+                    <div
+                      className={`toggle-switch ${streamingEnabled ? 'toggle-switch--active' : ''}`}
+                      onClick={() => setStreamingEnabled(!streamingEnabled)}
+                      role="switch"
+                      aria-checked={streamingEnabled}
+                      tabIndex={0}
+                    >
+                      <div className="toggle-switch-slider" />
+                    </div>
+                  </div>
+                  <div className="rate-limit-hint" style={{ marginTop: '0.5rem' }}>
+                    {streamingEnabled
+                      ? '⚡ Real-time: See AI response as it\'s generated'
+                      : '⏳ Wait: See complete response when ready'}
                   </div>
                 </div>
               </div>

@@ -106,6 +106,139 @@ export async function sendMessage(
     })
 }
 
+/**
+ * SSE streaming message types
+ */
+type StreamEventUserCreated = {
+    type: 'user_created'
+    userMessage: MessageResponse['userMessage']
+    userNode: GraphResponse['nodes'][0]
+    newEdges: GraphResponse['edges']
+}
+
+type StreamEventAIChunk = {
+    type: 'ai_chunk'
+    chunk: string
+    fullContent: string
+}
+
+type StreamEventComplete = {
+    type: 'complete'
+    aiMessage: MessageResponse['aiMessage']
+    aiNode: GraphResponse['nodes'][0]
+    edge: GraphResponse['edges'][0]
+}
+
+type StreamEventTitleGenerated = {
+    type: 'title_generated'
+    title: string
+}
+
+type StreamEventError = {
+    type: 'error'
+    error: string
+}
+
+type StreamEvent =
+    | StreamEventUserCreated
+    | StreamEventAIChunk
+    | StreamEventComplete
+    | StreamEventTitleGenerated
+    | StreamEventError
+
+export type StreamCallbacks = {
+    onUserCreated?: (data: StreamEventUserCreated) => void
+    onAIChunk?: (chunk: string, fullContent: string) => void
+    onComplete?: (data: StreamEventComplete) => void
+    onTitleGenerated?: (title: string) => void
+    onError?: (error: string) => void
+}
+
+/**
+ * Send a message with streaming AI response
+ */
+export async function sendMessageStream(
+    conversationId: string,
+    content: string,
+    callbacks: StreamCallbacks,
+    fromNodeIds?: string[] | null,
+    draftNodeId?: string | null,
+    position?: { x: number; y: number } | null,
+    contextRanges?: { sourceNodeId: string; startPos: number; endPos: number }[] | null
+): Promise<void> {
+    const response = await fetch('/api/messages/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            conversationId,
+            content: content.trim(),
+            fromNodeIds: fromNodeIds ?? [],
+            draftNodeId: draftNodeId ?? null,
+            position: position ?? null,
+            contextRanges: contextRanges ?? null,
+        }),
+    })
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as { error?: string } | null
+        const message = errorBody?.error ?? `Request failed with status ${response.status}`
+        callbacks.onError?.(message)
+        throw new Error(message)
+    }
+
+    if (!response.body) {
+        throw new Error('Response body is null')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const jsonStr = line.slice(6)
+                    if (jsonStr.trim() === '[DONE]') continue
+
+                    try {
+                        const event = JSON.parse(jsonStr) as StreamEvent
+
+                        switch (event.type) {
+                            case 'user_created':
+                                callbacks.onUserCreated?.(event)
+                                break
+                            case 'ai_chunk':
+                                callbacks.onAIChunk?.(event.chunk, event.fullContent)
+                                break
+                            case 'complete':
+                                callbacks.onComplete?.(event)
+                                break
+                            case 'title_generated':
+                                callbacks.onTitleGenerated?.(event.title)
+                                break
+                            case 'error':
+                                callbacks.onError?.(event.error)
+                                break
+                        }
+                    } catch {
+                        // Skip malformed JSON
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock()
+    }
+}
+
 // ============================================================================
 // Graph API
 // ============================================================================
